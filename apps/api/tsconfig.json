@@ -8,6 +8,7 @@
     "emitDecoratorMetadata": true,
     "allowSyntheticDefaultImports": true,
     "strictPropertyInitialization": false,
+    "noImplicitAny": false,
     "paths": {
       "@/*": ["./src/*"]
     },
