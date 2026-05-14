@@ -193,17 +193,17 @@ export class TrainersService {
       _count: { id: true },
     });
 
-    const trainerIds = rows.map((r) => r.trainerId);
+    const trainerIds = rows.map((r: { trainerId: string }) => r.trainerId);
     const trainers = await this.prisma.staffUser.findMany({
       where: { id: { in: trainerIds } },
       select: { id: true, name: true, phone: true },
     });
-    const trainerMap = new Map(trainers.map((t) => [t.id, t]));
+    const trainerMap = new Map(trainers.map((t: { id: string; name: string; phone: string }) => [t.id, t]));
 
-    return rows.map((r) => ({
+    return rows.map((r: { trainerId: string; _sum: Record<string, number | null>; _count: Record<string, number> }) => ({
       trainer: trainerMap.get(r.trainerId) ?? { id: r.trainerId, name: "Unknown", phone: "" },
-      totalPaise: r._sum.amountPaise ?? 0,
-      count: r._count.id,
+      totalPaise: r._sum["amountPaise"] ?? 0,
+      count: r._count["id"] ?? 0,
     }));
   }
 

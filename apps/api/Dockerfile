@@ -18,23 +18,26 @@ FROM node:20-alpine AS builder
 RUN corepack enable && corepack prepare pnpm@9.1.0 --activate
 WORKDIR /app
 
-COPY --from=deps /app/node_modules        ./node_modules
-COPY --from=deps /app/packages/config/node_modules    ./packages/config/node_modules
-COPY --from=deps /app/packages/shared-types/node_modules ./packages/shared-types/node_modules
-COPY --from=deps /app/packages/db/node_modules        ./packages/db/node_modules
-COPY --from=deps /app/packages/ui/node_modules        ./packages/ui/node_modules
-COPY --from=deps /app/apps/api/node_modules           ./apps/api/node_modules
+COPY --from=deps /app/node_modules                        ./node_modules
+COPY --from=deps /app/packages/config/node_modules        ./packages/config/node_modules
+COPY --from=deps /app/packages/shared-types/node_modules  ./packages/shared-types/node_modules
+COPY --from=deps /app/packages/db/node_modules            ./packages/db/node_modules
+COPY --from=deps /app/packages/ui/node_modules            ./packages/ui/node_modules
+COPY --from=deps /app/apps/api/node_modules               ./apps/api/node_modules
 
 # Copy full source
 COPY . .
 
-# Generate Prisma client
+# 1. Generate Prisma client (Linux binary)
 RUN pnpm --filter @grwfit/db exec prisma generate
 
-# Build shared packages first
+# 2. Build @grwfit/db so its dist/index.js exists before the API compiles
+RUN pnpm --filter @grwfit/db build
+
+# 3. Build @grwfit/shared-types
 RUN pnpm --filter @grwfit/shared-types build
 
-# Build the API
+# 4. Build the API
 RUN pnpm --filter @grwfit/api run build
 
 # ── Stage 3: runner ───────────────────────────────────────────────────────────
@@ -44,16 +47,24 @@ WORKDIR /app
 
 ENV NODE_ENV=production
 
-# Copy only what's needed to run
-COPY --from=builder /app/node_modules              ./node_modules
-COPY --from=builder /app/packages/db/node_modules  ./packages/db/node_modules
-COPY --from=builder /app/packages/db/prisma        ./packages/db/prisma
-COPY --from=builder /app/apps/api/dist             ./apps/api/dist
-COPY --from=builder /app/apps/api/node_modules     ./apps/api/node_modules
-COPY --from=builder /app/apps/api/package.json     ./apps/api/package.json
+# Runtime node_modules (includes prod deps + hoisted packages)
+COPY --from=builder /app/node_modules                    ./node_modules
+COPY --from=builder /app/node_modules/.prisma            ./node_modules/.prisma
 
-# Prisma generated client (Linux engine binary created during build)
-COPY --from=builder /app/node_modules/.prisma      ./node_modules/.prisma
+# @grwfit/db — source, built dist, prisma schema + generated client
+COPY --from=builder /app/packages/db/package.json        ./packages/db/package.json
+COPY --from=builder /app/packages/db/dist                ./packages/db/dist
+COPY --from=builder /app/packages/db/prisma              ./packages/db/prisma
+COPY --from=builder /app/packages/db/node_modules        ./packages/db/node_modules
+
+# @grwfit/shared-types — built dist
+COPY --from=builder /app/packages/shared-types/dist      ./packages/shared-types/dist
+COPY --from=builder /app/packages/shared-types/package.json ./packages/shared-types/package.json
+
+# API compiled output
+COPY --from=builder /app/apps/api/dist                   ./apps/api/dist
+COPY --from=builder /app/apps/api/node_modules           ./apps/api/node_modules
+COPY --from=builder /app/apps/api/package.json           ./apps/api/package.json
 
 WORKDIR /app/apps/api
 
