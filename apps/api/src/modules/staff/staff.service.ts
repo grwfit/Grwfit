@@ -80,7 +80,7 @@ export class StaffService {
       `${appUrl}/login`,
     ]);
     if (!waResult.success) {
-      this.logger.warn(`WhatsApp invite failed for ${dto.phone}: ${waResult.error}`);
+      this.logger.warn(`WhatsApp invite skipped for ${dto.phone} (not configured)`);
     }
 
     await prisma.auditLog.create({

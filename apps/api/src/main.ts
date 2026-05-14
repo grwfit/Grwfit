@@ -11,7 +11,6 @@ import type { AppConfig } from "./config/configuration";
 
 async function bootstrap() {
   const logger = new Logger("Bootstrap");
-  // rawBody: true is required for Razorpay webhook signature verification
   const app = await NestFactory.create(AppModule, {
     logger: ["error", "warn", "log"],
     rawBody: true,
@@ -44,14 +43,16 @@ async function bootstrap() {
 
   // CORS — allow cookies (credentials: true)
   app.enableCors({
-    origin: nodeEnv === "production"
-      ? [
-          "https://app.grwfit.com",
-          "https://admin.grwfit.com",
-          "https://m.grwfit.com",
-          /\.grwfit\.com$/,
-        ]
-      : ["http://localhost:3001", "http://localhost:3002", "http://localhost:3003", "http://localhost:3004"],
+    origin: [
+      "https://grwfit.onrender.com",
+      "https://app.grwfit.com",
+      "https://admin.grwfit.com",
+      "https://m.grwfit.com",
+      "http://localhost:3000",
+      "http://localhost:3001",
+      "http://localhost:3002",
+      "http://localhost:3003",
+    ],
     credentials: true, // required for cookies
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization"],

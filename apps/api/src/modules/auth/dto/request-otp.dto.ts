@@ -1,11 +1,10 @@
-import { IsEnum, IsString, Matches } from "class-validator";
+import { IsEnum, IsEmail } from "class-validator";
 import { ApiProperty } from "@nestjs/swagger";
 
 export class RequestOtpDto {
-  @ApiProperty({ example: "+919876543210" })
-  @IsString()
-  @Matches(/^\+91[6-9]\d{9}$/, { message: "Phone must be a valid +91 Indian number" })
-  phone: string;
+  @ApiProperty({ example: "rajesh@ironforge.in" })
+  @IsEmail({}, { message: "Must be a valid email address" })
+  email: string;
 
   @ApiProperty({ enum: ["staff", "member"] })
   @IsEnum(["staff", "member"])

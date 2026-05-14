@@ -237,7 +237,7 @@ export class RenewalsService {
         triggerType, templateId: config?.templateId ?? null,
         channel: "whatsapp",
         status: result.success ? "sent" : "failed",
-        errorMsg: result.success ? null : (result.error ?? null),
+        errorMsg: null,
       },
     });
 

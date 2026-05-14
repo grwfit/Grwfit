@@ -8,24 +8,45 @@ PROJECT
   Tenancy: gym_id column + Row-Level Security on every table
 
 TECH STACK
-  Backend:    Node.js 20, NestJS, TypeScript, REST + WebSocket
+  Backend:    Node.js 20, NestJS, TypeScript, REST
   Database:   Supabase (PostgreSQL 16) — RLS on all tables, gym_id enforced
-  Auth:       Supabase Auth — Phone OTP (+91) → JWT
+  Auth:       Supabase built-in Email OTP → custom JWT
               Access token = 15min | Refresh token = 30 days
-  Realtime:   Supabase Realtime (WebSocket)
+              Staff & members log in with email (not phone)
   Storage:    Supabase Storage (dev) → AWS S3 Mumbai (production)
   Cache/Jobs: Upstash Redis + BullMQ
   Dashboard:  Next.js 14 App Router, Tailwind CSS, shadcn/ui, React Query
-  Mobile:     React Native (Expo)
+  Mobile:     React Native (Expo) — future
 
 INFRA
-    API server  → Railway (NestJS)
-    Database    → Supabase (free tier)
+    API server  → Render (free tier, https://grwfit.onrender.com)
+                  Spins down after 15 min inactivity (~50s cold start)
+                  Docker deployment via apps/api/Dockerfile
+                  render.yaml at repo root for IaC
+    Database    → Supabase (free tier, ap-south-1)
     Redis       → Upstash (free tier)
     Storage     → Supabase Storage
-    Frontend    → Vercel (free tier)
-    Mobile      → Expo (free)
-    OTP SMS     → Supabase Auth / MSG91
+    Frontend    → Vercel (free tier) — not yet deployed
+    Mobile      → Expo (free) — future
+    WhatsApp    → Gupshup (NOT YET CONFIGURED — stub returns false)
+    Payments    → Razorpay (NOT YET CONFIGURED — returns 503)
+
+CURRENT STATUS (as of 2026-05-15)
+    ✓ Database schema pushed (47 tables, RLS on all)
+    ✓ Seed data: Iron Forge Fitness gym, 3 staff, 20 members
+    ✓ API live on Render: https://grwfit.onrender.com
+    ✓ Email OTP auth working via Supabase
+    ✓ Redis connected (Upstash)
+    ✗ Frontends not yet deployed to Vercel
+    ✗ WhatsApp (Gupshup) — add credentials when ready
+    ✗ Payments (Razorpay) — add credentials when ready
+    ✗ Supabase Auth: staff/members need email set to log in
+
+DISABLED FEATURES (re-enable by adding credentials to env)
+    Payments:  RAZORPAY_KEY_ID/SECRET → Razorpay dashboard
+    WhatsApp:  GUPSHUP_API_KEY/SRC_PHONE → Gupshup dashboard
+    Payment UI: hidden from sidebar until Razorpay is live
+    WhatsApp UI: hidden from sidebar until Gupshup is live
 
 
 SUBDOMAINS (one backend, three frontends)

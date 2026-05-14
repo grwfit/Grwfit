@@ -7,8 +7,6 @@ import {
 import { getPrismaClient } from "@grwfit/db";
 import { OtpService } from "./services/otp.service";
 import { TokenService } from "./services/token.service";
-import { WhatsAppService } from "./services/whatsapp.service";
-import { SmsService } from "./services/sms.service";
 import type { RequestOtpDto } from "./dto/request-otp.dto";
 import type { VerifyOtpDto } from "./dto/verify-otp.dto";
 import type { SelectGymDto } from "./dto/select-gym.dto";
@@ -26,7 +24,7 @@ export interface AuthResult {
   user: {
     id: string;
     name: string;
-    phone: string;
+    email: string | null;
     role?: string;
     type: "staff" | "member";
   };
@@ -41,53 +39,42 @@ export class AuthService {
   constructor(
     private readonly otpService: OtpService,
     private readonly tokenService: TokenService,
-    private readonly whatsAppService: WhatsAppService,
-    private readonly smsService: SmsService,
   ) {}
 
-  async requestOtp(dto: RequestOtpDto, ip?: string): Promise<{ sent: boolean; channel: string; devOtp?: string }> {
+  async requestOtp(dto: RequestOtpDto, ip?: string): Promise<{ sent: boolean; channel: string }> {
     const prisma = getPrismaClient();
 
-    // Validate the phone belongs to a known user for staff type
+    // Validate the email belongs to a known user — but don't reveal if it doesn't
     if (dto.userType === "staff") {
       const exists = await prisma.staffUser.findFirst({
-        where: { phone: dto.phone, isActive: true },
+        where: { email: dto.email, isActive: true },
       });
       if (!exists) {
-        // Security: don't reveal whether account exists
-        // Still "succeed" to prevent user enumeration
-        this.logger.warn(`OTP requested for unknown staff phone: ${dto.phone}`);
-        return { sent: true, channel: "whatsapp" };
+        this.logger.warn(`OTP requested for unknown staff email: ${dto.email}`);
+        return { sent: true, channel: "email" }; // security: don't reveal non-existence
+      }
+    } else {
+      const exists = await prisma.member.findFirst({
+        where: { email: dto.email, deletedAt: null },
+      });
+      if (!exists) {
+        this.logger.warn(`OTP requested for unknown member email: ${dto.email}`);
+        return { sent: true, channel: "email" };
       }
     }
 
-    const otp = await this.otpService.requestOtp(dto.phone, dto.userType);
+    await this.otpService.requestOtp(dto.email);
 
-    // Send via WhatsApp first, SMS fallback
-    const waResult = await this.whatsAppService.sendOtp(dto.phone, otp);
-    let channel = "whatsapp";
-
-    if (!waResult.success) {
-      const smsSent = await this.smsService.sendOtp(dto.phone, otp);
-      channel = smsSent ? "sms" : "failed";
-
-      if (!smsSent) {
-        this.logger.error(`Failed to send OTP to ${dto.phone} via WhatsApp AND SMS`);
-      }
-    }
-
-    // Log OTP request (without the actual OTP)
     await prisma.loginHistory.create({
       data: {
-        userId: "00000000-0000-0000-0000-000000000000", // placeholder for OTP request
+        userId: "00000000-0000-0000-0000-000000000000",
         userType: dto.userType,
         ip: ip ?? null,
         success: false,
       },
     });
 
-    const devOtp = process.env["NODE_ENV"] !== "production" ? otp : undefined;
-    return { sent: true, channel, devOtp };
+    return { sent: true, channel: "email" };
   }
 
   async verifyOtp(
@@ -95,14 +82,12 @@ export class AuthService {
     ip?: string,
     userAgent?: string,
   ): Promise<AuthResult> {
-    const prisma = getPrismaClient();
-
-    await this.otpService.verifyOtp(dto.phone, dto.otp, dto.userType);
+    await this.otpService.verifyOtp(dto.email, dto.otp);
 
     if (dto.userType === "staff") {
-      return this.loginStaff(dto.phone, ip, userAgent);
+      return this.loginStaff(dto.email, ip, userAgent);
     } else {
-      return this.loginMember(dto.phone, ip, userAgent);
+      return this.loginMember(dto.email, ip, userAgent);
     }
   }
 
@@ -114,22 +99,14 @@ export class AuthService {
   ): Promise<AuthResult> {
     const prisma = getPrismaClient();
 
-    // Verify the pre-select token
     const payload = this.tokenService.verifyPreSelectToken(preSelectToken);
 
-    // Validate staff belongs to requested gym
     const staffUser = await prisma.staffUser.findFirst({
-      where: {
-        id: payload.userId,
-        gymId: dto.gymId,
-        isActive: true,
-      },
+      where: { id: payload.userId, gymId: dto.gymId, isActive: true },
       include: { gym: true },
     });
 
-    if (!staffUser) {
-      throw new ForbiddenException("You do not have access to this gym");
-    }
+    if (!staffUser) throw new ForbiddenException("You do not have access to this gym");
 
     const accessToken = this.tokenService.issueStaffToken({
       userId: staffUser.id,
@@ -140,37 +117,22 @@ export class AuthService {
     });
 
     const refreshToken = await this.tokenService.issueRefreshToken(
-      staffUser.id,
-      "staff",
-      staffUser.gymId,
+      staffUser.id, "staff", staffUser.gymId,
     );
 
-    await prisma.staffUser.update({
-      where: { id: staffUser.id },
-      data: { lastLoginAt: new Date() },
-    });
-
+    await prisma.staffUser.update({ where: { id: staffUser.id }, data: { lastLoginAt: new Date() } });
     await this.writeLoginHistory(staffUser.id, "staff", staffUser.gymId, true, ip, userAgent);
     await this.writeAuditLog(staffUser.id, "staff", staffUser.gymId, "login");
 
     return {
       accessToken,
       refreshToken,
-      user: {
-        id: staffUser.id,
-        name: staffUser.name,
-        phone: staffUser.phone,
-        role: staffUser.role,
-        type: "staff",
-      },
+      user: { id: staffUser.id, name: staffUser.name, email: staffUser.email, role: staffUser.role, type: "staff" },
       gymId: staffUser.gymId,
     };
   }
 
-  async refresh(rawRefreshToken: string): Promise<{
-    accessToken: string;
-    refreshToken: string;
-  }> {
+  async refresh(rawRefreshToken: string): Promise<{ accessToken: string; refreshToken: string }> {
     const rotated = await this.tokenService.rotateRefreshToken(rawRefreshToken);
 
     let accessToken: string;
@@ -181,7 +143,6 @@ export class AuthService {
         select: { role: true, branchId: true },
       });
       if (!staffUser) throw new UnauthorizedException("User not found");
-
       accessToken = this.tokenService.issueStaffToken({
         userId: rotated.userId,
         gymId: rotated.gymId!,
@@ -201,9 +162,7 @@ export class AuthService {
   }
 
   async logout(rawRefreshToken: string | undefined, userId: string): Promise<void> {
-    if (rawRefreshToken) {
-      await this.tokenService.revokeRefreshToken(rawRefreshToken);
-    }
+    if (rawRefreshToken) await this.tokenService.revokeRefreshToken(rawRefreshToken);
     await this.writeAuditLog(userId, "staff", undefined, "logout");
   }
 
@@ -227,110 +186,77 @@ export class AuthService {
     return { ...user, type: "member" as const };
   }
 
-  private async loginStaff(phone: string, ip?: string, userAgent?: string): Promise<AuthResult> {
+  private async loginStaff(email: string, ip?: string, userAgent?: string): Promise<AuthResult> {
     const prisma = getPrismaClient();
 
-    // Find all active staff records for this phone (may span multiple gyms)
     const staffUsers = await prisma.staffUser.findMany({
-      where: { phone, isActive: true },
+      where: { email, isActive: true },
       include: { gym: { select: { id: true, name: true, slug: true, logoUrl: true } } },
     });
 
     if (staffUsers.length === 0) {
-      throw new UnauthorizedException("No active staff account found for this phone");
+      throw new UnauthorizedException("No active staff account found for this email");
     }
 
     if (staffUsers.length === 1) {
-      const staffUser = staffUsers[0]!;
+      const s = staffUsers[0]!;
       const accessToken = this.tokenService.issueStaffToken({
-        userId: staffUser.id,
-        gymId: staffUser.gymId,
-        role: staffUser.role,
-        branchId: staffUser.branchId,
-        type: "staff",
+        userId: s.id, gymId: s.gymId, role: s.role, branchId: s.branchId, type: "staff",
       });
-      const refreshToken = await this.tokenService.issueRefreshToken(
-        staffUser.id,
-        "staff",
-        staffUser.gymId,
-      );
+      const refreshToken = await this.tokenService.issueRefreshToken(s.id, "staff", s.gymId);
 
-      await prisma.staffUser.update({
-        where: { id: staffUser.id },
-        data: { lastLoginAt: new Date() },
-      });
-      await this.writeLoginHistory(staffUser.id, "staff", staffUser.gymId, true, ip, userAgent);
-      await this.writeAuditLog(staffUser.id, "staff", staffUser.gymId, "login");
+      await prisma.staffUser.update({ where: { id: s.id }, data: { lastLoginAt: new Date() } });
+      await this.writeLoginHistory(s.id, "staff", s.gymId, true, ip, userAgent);
+      await this.writeAuditLog(s.id, "staff", s.gymId, "login");
 
       return {
-        accessToken,
-        refreshToken,
-        user: { id: staffUser.id, name: staffUser.name, phone: staffUser.phone, role: staffUser.role, type: "staff" },
-        gymId: staffUser.gymId,
+        accessToken, refreshToken,
+        user: { id: s.id, name: s.name, email: s.email, role: s.role, type: "staff" },
+        gymId: s.gymId,
       };
     }
 
-    // Multiple gyms — issue pre-select token, return gym list
-    // Use the first staff record's userId as the pre-select identity
-    const primaryStaff = staffUsers[0]!;
-    const accessToken = this.tokenService.issueStaffPreSelectToken(primaryStaff.id);
-
+    // Multiple gyms — return gym picker
+    const primary = staffUsers[0]!;
+    const accessToken = this.tokenService.issueStaffPreSelectToken(primary.id);
     const gyms: GymOption[] = staffUsers.map((s) => ({
-      id: s.gym.id,
-      name: s.gym.name,
-      slug: s.gym.slug,
-      logoUrl: s.gym.logoUrl,
+      id: s.gym.id, name: s.gym.name, slug: s.gym.slug, logoUrl: s.gym.logoUrl,
     }));
 
     return {
-      accessToken,
-      refreshToken: "", // No refresh token until gym is selected
-      user: { id: primaryStaff.id, name: primaryStaff.name, phone: primaryStaff.phone, type: "staff" },
-      gymId: null,
-      gyms,
+      accessToken, refreshToken: "",
+      user: { id: primary.id, name: primary.name, email: primary.email, type: "staff" },
+      gymId: null, gyms,
     };
   }
 
-  private async loginMember(phone: string, ip?: string, userAgent?: string): Promise<AuthResult> {
+  private async loginMember(email: string, ip?: string, userAgent?: string): Promise<AuthResult> {
     const prisma = getPrismaClient();
 
     const member = await prisma.member.findFirst({
-      where: { phone, deletedAt: null },
+      where: { email, deletedAt: null },
     });
 
-    if (!member) {
-      throw new UnauthorizedException("No member account found for this phone");
-    }
+    if (!member) throw new UnauthorizedException("No member account found for this email");
 
     const accessToken = this.tokenService.issueMemberToken({
-      userId: member.id,
-      gymId: member.gymId,
-      type: "member",
+      userId: member.id, gymId: member.gymId, type: "member",
     });
-    const refreshToken = await this.tokenService.issueRefreshToken(
-      member.id,
-      "member",
-      member.gymId,
-    );
+    const refreshToken = await this.tokenService.issueRefreshToken(member.id, "member", member.gymId);
 
     await this.writeLoginHistory(member.id, "member", member.gymId, true, ip, userAgent);
     await this.writeAuditLog(member.id, "member", member.gymId, "login");
 
     return {
-      accessToken,
-      refreshToken,
-      user: { id: member.id, name: member.name, phone: member.phone, type: "member" },
+      accessToken, refreshToken,
+      user: { id: member.id, name: member.name, email: member.email, type: "member" },
       gymId: member.gymId,
     };
   }
 
   private async writeLoginHistory(
-    userId: string,
-    userType: "staff" | "member",
-    gymId: string | undefined,
-    success: boolean,
-    ip?: string,
-    userAgent?: string,
+    userId: string, userType: "staff" | "member", gymId: string | undefined,
+    success: boolean, ip?: string, userAgent?: string,
   ) {
     const prisma = getPrismaClient();
     await prisma.loginHistory.create({
@@ -339,10 +265,8 @@ export class AuthService {
   }
 
   private async writeAuditLog(
-    actorId: string,
-    actorType: "staff" | "member",
-    gymId: string | undefined,
-    action: "login" | "logout",
+    actorId: string, actorType: "staff" | "member",
+    gymId: string | undefined, action: "login" | "logout",
   ) {
     const prisma = getPrismaClient();
     await prisma.auditLog.create({

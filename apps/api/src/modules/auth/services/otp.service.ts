@@ -1,136 +1,67 @@
-import {
-  Injectable, HttpException, HttpStatus,
-  UnauthorizedException, Logger,
-} from "@nestjs/common";
+import { Injectable, Logger, UnauthorizedException, HttpException, HttpStatus } from "@nestjs/common";
+import { ConfigService } from "@nestjs/config";
+import type { AppConfig } from "../../../config/configuration";
 
 class TooManyRequestsException extends HttpException {
   constructor(msg?: string) { super(msg ?? "Too many requests", HttpStatus.TOO_MANY_REQUESTS); }
 }
-import * as bcrypt from "bcrypt";
-import { getPrismaClient } from "@grwfit/db";
-import type { UserType } from "@grwfit/db";
-
-const OTP_MAX_REQUESTS_PER_HOUR = 3;
-const OTP_LOCKOUT_MINUTES = 15;
-const OTP_EXPIRY_MINUTES = 5;
-const OTP_MAX_ATTEMPTS = 3;
-const BCRYPT_ROUNDS = 10;
 
 @Injectable()
 export class OtpService {
   private readonly logger = new Logger(OtpService.name);
+  private readonly supabaseUrl: string;
+  private readonly supabaseAnonKey: string;
 
-  async requestOtp(phone: string, userType: UserType): Promise<string> {
-    const prisma = getPrismaClient();
-
-    await this.checkRateLimit(phone, userType);
-
-    const otp = this.generateOtp();
-    const otpHash = await bcrypt.hash(otp, BCRYPT_ROUNDS);
-    const expiresAt = new Date(Date.now() + OTP_EXPIRY_MINUTES * 60 * 1000);
-
-    await prisma.authOtp.create({
-      data: { phone, otpHash, userType, expiresAt },
-    });
-
-    this.logger.log(`OTP requested for ${phone} [${userType}]`);
-    return otp;
+  constructor(config: ConfigService<AppConfig, true>) {
+    this.supabaseUrl = config.get("supabase.url", { infer: true });
+    this.supabaseAnonKey = config.get("supabase.anonKey", { infer: true });
   }
 
-  async verifyOtp(phone: string, otp: string, userType: UserType): Promise<void> {
-    const prisma = getPrismaClient();
-
-    // Find the most recent unused, non-expired OTP for this phone
-    const record = await prisma.authOtp.findFirst({
-      where: {
-        phone,
-        userType,
-        usedAt: null,
-        expiresAt: { gt: new Date() },
+  // Send OTP email via Supabase built-in email OTP
+  async requestOtp(email: string): Promise<void> {
+    const res = await fetch(`${this.supabaseUrl}/auth/v1/otp`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "apikey": this.supabaseAnonKey,
       },
-      orderBy: { createdAt: "desc" },
+      body: JSON.stringify({ email, create_user: false }),
     });
 
-    // Check phone lockout (3 failed attempts within OTP window)
-    if (!record) {
-      // Check if locked out due to past attempts
-      const locked = await prisma.authOtp.findFirst({
-        where: {
-          phone,
-          userType,
-          attempts: { gte: OTP_MAX_ATTEMPTS },
-          createdAt: { gte: new Date(Date.now() - OTP_LOCKOUT_MINUTES * 60 * 1000) },
-        },
-      });
-      if (locked) {
-        throw new TooManyRequestsException(
-          `Too many failed attempts. Try again in ${OTP_LOCKOUT_MINUTES} minutes.`,
-        );
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({})) as Record<string, unknown>;
+      // 422 = email not found in Supabase Auth — treat as success (don't reveal user existence)
+      if (res.status === 422) {
+        this.logger.warn(`Supabase OTP: email not registered — ${email}`);
+        return;
       }
-      throw new UnauthorizedException("OTP expired or not found. Request a new one.");
+      if (res.status === 429) throw new TooManyRequestsException("Too many OTP requests. Try again later.");
+      this.logger.error(`Supabase OTP request failed: ${JSON.stringify(body)}`);
+      throw new HttpException("Failed to send OTP. Please try again.", HttpStatus.BAD_GATEWAY);
     }
 
-    if (record.attempts >= OTP_MAX_ATTEMPTS) {
-      throw new TooManyRequestsException(
-        `Too many failed attempts. Try again in ${OTP_LOCKOUT_MINUTES} minutes.`,
-      );
-    }
-
-    const valid = await bcrypt.compare(otp, record.otpHash);
-    if (!valid) {
-      await prisma.authOtp.update({
-        where: { id: record.id },
-        data: { attempts: { increment: 1 } },
-      });
-
-      const remaining = OTP_MAX_ATTEMPTS - (record.attempts + 1);
-      throw new UnauthorizedException(
-        remaining > 0
-          ? `Invalid OTP. ${remaining} attempt${remaining === 1 ? "" : "s"} remaining.`
-          : `Too many failed attempts. Try again in ${OTP_LOCKOUT_MINUTES} minutes.`,
-      );
-    }
-
-    // Mark OTP as used
-    await prisma.authOtp.update({
-      where: { id: record.id },
-      data: { usedAt: new Date() },
-    });
+    this.logger.log(`Email OTP sent to ${email}`);
   }
 
-  private async checkRateLimit(phone: string, userType: UserType): Promise<void> {
-    const prisma = getPrismaClient();
-    const since = new Date(Date.now() - 60 * 60 * 1000); // 1 hour
-
-    const recentCount = await prisma.authOtp.count({
-      where: {
-        phone,
-        userType,
-        createdAt: { gte: since },
+  // Verify OTP token via Supabase
+  async verifyOtp(email: string, token: string): Promise<void> {
+    const res = await fetch(`${this.supabaseUrl}/auth/v1/verify`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "apikey": this.supabaseAnonKey,
       },
+      body: JSON.stringify({ email, token, type: "email" }),
     });
 
-    if (recentCount >= OTP_MAX_REQUESTS_PER_HOUR) {
-      throw new TooManyRequestsException(
-        "Too many OTP requests. Try again in an hour.",
-      );
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({})) as Record<string, string>;
+      if (res.status === 401 || res.status === 422) {
+        throw new UnauthorizedException(body["error_description"] ?? "Invalid or expired OTP.");
+      }
+      if (res.status === 429) throw new TooManyRequestsException("Too many attempts. Try again later.");
+      this.logger.error(`Supabase OTP verify failed: ${JSON.stringify(body)}`);
+      throw new UnauthorizedException("OTP verification failed. Please try again.");
     }
-  }
-
-  private generateOtp(): string {
-    // Cryptographically random 6-digit OTP
-    const min = 100000;
-    const max = 999999;
-    const range = max - min + 1;
-    const bytesNeeded = Math.ceil(Math.log2(range) / 8);
-    const maxValid = Math.floor(256 ** bytesNeeded / range) * range;
-
-    let randomValue: number;
-    do {
-      const bytes = require("crypto").randomBytes(bytesNeeded) as Buffer;
-      randomValue = bytes.reduce((acc: number, b: number) => acc * 256 + b, 0);
-    } while (randomValue >= maxValid);
-
-    return String(min + (randomValue % range));
   }
 }

@@ -50,12 +50,7 @@ export class AuthController {
     const result = await this.authService.requestOtp(dto, req.ip);
     return {
       success: true,
-      data: {
-        sent: result.sent,
-        channel: result.channel,
-        // Expose OTP in development so you can test without WhatsApp credentials
-        ...(IS_PROD ? {} : { devOtp: result.devOtp }),
-      },
+      data: { sent: result.sent, channel: result.channel },
     };
   }
 
