@@ -10,6 +10,7 @@ const nextConfig = {
   },
   experimental: {
     typedRoutes: false,
+    missingSuspenseWithCSRBailout: false,
   },
 };
 
