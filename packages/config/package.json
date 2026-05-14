@@ -2,6 +2,9 @@
   "name": "@grwfit/config",
   "version": "0.0.1",
   "private": true,
+  "scripts": {
+    "build": "echo '@grwfit/config has no build step'"
+  },
   "exports": {
     "./tsconfig/base": "./tsconfig/base.json",
     "./tsconfig/nextjs": "./tsconfig/nextjs.json",
