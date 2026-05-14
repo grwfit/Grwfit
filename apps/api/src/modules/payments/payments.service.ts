@@ -85,7 +85,7 @@ export class PaymentsService {
     if (!member) throw new NotFoundException("Member not found");
 
     // Validate plan
-    let plan = null;
+    let plan: Awaited<ReturnType<typeof prisma.membershipPlan.findFirst>> = null;
     if (dto.planId) {
       plan = await prisma.membershipPlan.findFirst({ where: { id: dto.planId, gymId } });
       if (!plan) throw new NotFoundException("Plan not found");
