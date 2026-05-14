@@ -1,0 +1,1366 @@
+// ─── Prisma Schema — GrwFit ───────────────────────────────────────────────────
+// Rules: every table has gym_id + RLS; money in paise; timestamps UTC
+
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["postgresqlExtensions"]
+}
+
+datasource db {
+  provider          = "postgresql"
+  url               = env("DATABASE_URL")
+  directUrl         = env("DIRECT_URL")
+  extensions        = [pgcrypto, pg_trgm]
+}
+
+// ─── Enums ────────────────────────────────────────────────────────────────────
+
+enum GymStatus {
+  trial
+  active
+  suspended
+  churned
+}
+
+enum GymPlanTier {
+  trial
+  basic
+  standard
+  pro
+}
+
+enum StaffRole {
+  owner
+  manager
+  trainer
+  reception
+}
+
+enum MemberStatus {
+  active
+  expired
+  frozen
+  trial
+}
+
+enum MemberGender {
+  male
+  female
+  other
+  prefer_not_to_say
+}
+
+enum UserType {
+  staff
+  member
+  platform
+}
+
+enum PlatformRole {
+  super_admin
+  cs_rep
+  sales
+  finance
+}
+
+enum AuditAction {
+  create
+  update
+  delete
+  login
+  logout
+  impersonate
+}
+
+// ─── Gyms ─────────────────────────────────────────────────────────────────────
+
+model Gym {
+  id             String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name           String
+  slug           String      @unique
+  subdomain      String      @unique
+  customDomain   String?     @map("custom_domain")
+  planTier       GymPlanTier @default(trial) @map("plan_tier")
+  status         GymStatus   @default(trial)
+  gstNo          String?     @map("gst_no")
+  address        Json        @default("{}")
+  phone          String
+  timezone       String      @default("Asia/Kolkata")
+  logoUrl        String?     @map("logo_url")
+  operatingHours Json?       @map("operating_hours")
+  trialEndsAt    DateTime?   @map("trial_ends_at")
+  createdAt      DateTime    @default(now()) @map("created_at")
+  updatedAt      DateTime    @updatedAt @map("updated_at")
+
+  branches            Branch[]
+  staffUsers          StaffUser[]
+  members             Member[]
+  auditLogs           AuditLog[]
+  authOtps            AuthOtp[]
+  refreshTokens       RefreshToken[]
+  memberNotes          MemberNote[]
+  memberFreezeHistory  MemberFreezeHistory[]
+  memberImportJobs     MemberImportJob[]
+  checkins             Checkin[]
+  checkinSettings      GymCheckinSettings?
+  membershipPlans      MembershipPlan[]
+  invoiceSequences     InvoiceSequence[]
+  payments             Payment[]
+  refunds              Refund[]
+  cashReconciliations  CashReconciliation[]
+  whatsappTemplates    WhatsappTemplate[]
+  renewalConfigs       GymRenewalConfig[]
+  renewalReminders     RenewalReminder[]
+  renewalFollowUps     RenewalFollowUp[]
+  whatsappMessages     WhatsappMessage[]
+  whatsappOptouts      WhatsappOptout[]
+  broadcastCampaigns   BroadcastCampaign[]
+  triggerRules         WhatsappTriggerRule[]
+  leadStages           LeadStage[]
+  leads                Lead[]
+  leadActivities       LeadActivity[]
+  website              Website?
+  classTemplates       ClassTemplate[]
+  classInstances       ClassInstance[]
+  classBookings        ClassBooking[]
+  classWaitlist        ClassWaitlist[]
+  classSettings        GymClassSettings?
+  onboardingProgress   OnboardingProgress?
+  platformSubscription PlatformSubscription?
+  consents             Consent[]
+  dataExportRequests   DataExportRequest[]
+  dataDeletionRequests DataDeletionRequest[]
+  workoutTemplates     WorkoutTemplate[]
+  workoutPlans         WorkoutPlan[]
+  dietPlans            DietPlan[]
+  progressLogs         ProgressLog[]
+  commissions          Commission[]
+
+  @@map("gyms")
+}
+
+// ─── Branches ─────────────────────────────────────────────────────────────────
+
+model Branch {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  gymId     String   @map("gym_id") @db.Uuid
+  name      String
+  address   Json     @default("{}")
+  phone     String?
+  isPrimary Boolean  @default(false) @map("is_primary")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  gym        Gym         @relation(fields: [gymId], references: [id], onDelete: Cascade)
+  staffUsers StaffUser[]
+  members    Member[]
+
+  @@index([gymId])
+  @@map("branches")
+}
+
+// ─── Staff Users ──────────────────────────────────────────────────────────────
+
+model StaffUser {
+  id            String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  gymId         String    @map("gym_id") @db.Uuid
+  branchId      String?   @map("branch_id") @db.Uuid
+  phone         String
+  email         String?
+  name          String
+  role          StaffRole
+  commissionPct Decimal?  @map("commission_pct") @db.Decimal(5, 2)
+  isActive      Boolean   @default(true) @map("is_active")
+  lastLoginAt   DateTime? @map("last_login_at")
+  createdBy     String?   @map("created_by") @db.Uuid
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+
+  gym           Gym            @relation(fields: [gymId], references: [id], onDelete: Cascade)
+  branch        Branch?        @relation(fields: [branchId], references: [id])
+  refreshTokens RefreshToken[]
+
+  @@unique([gymId, phone])
+  @@index([gymId])
+  @@index([gymId, role])
+  @@index([gymId, isActive])
+  @@map("staff_users")
+}
+
+// ─── Members ──────────────────────────────────────────────────────────────────
+
+model Member {
+  id                    String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  gymId                 String        @map("gym_id") @db.Uuid
+  branchId              String?       @map("branch_id") @db.Uuid
+  phone                 String
+  email                 String?
+  name                  String
+  dob                   DateTime?     @db.Date
+  gender                MemberGender?
+  photoUrl              String?       @map("photo_url")
+  address               Json?
+  emergencyContactName  String?       @map("emergency_contact_name")
+  emergencyContactPhone String?       @map("emergency_contact_phone")
+  goals                 Json?
+  healthNotes           String?       @map("health_notes")
+  medicalConditions     String?       @map("medical_conditions")
+  currentPlanId         String?       @map("current_plan_id") @db.Uuid
+  joinedAt              DateTime      @default(now()) @map("joined_at")
+  expiresAt             DateTime?     @map("expires_at")
+  status                MemberStatus  @default(trial)
+  assignedTrainerId     String?       @map("assigned_trainer_id") @db.Uuid
+  tags                  Json          @default("[]")
+  qrCode                String        @unique @map("qr_code")
+  doNotMessage          Boolean       @default(false) @map("do_not_message")
+  deletedAt             DateTime?     @map("deleted_at")
+  createdBy             String?       @map("created_by") @db.Uuid
+  createdAt             DateTime      @default(now()) @map("created_at")
+  updatedAt             DateTime      @updatedAt @map("updated_at")
+
+  gym                 Gym                   @relation(fields: [gymId], references: [id], onDelete: Cascade)
+  branch              Branch?               @relation(fields: [branchId], references: [id])
+  refreshTokens       RefreshToken[]
+  notes               MemberNote[]
+  freezeHistory       MemberFreezeHistory[]
+  checkins            Checkin[]
+  payments            Payment[]
+  renewalReminders    RenewalReminder[]
+  renewalFollowUps    RenewalFollowUp[]
+  whatsappMessages    WhatsappMessage[]
+  whatsappOptouts     WhatsappOptout[]
+  workoutPlans        WorkoutPlan[]
+  dietPlans           DietPlan[]
+  progressLogs        ProgressLog[]
+  classBookings       ClassBooking[]
+  classWaitlist       ClassWaitlist[]
+  consents            Consent[]
+  dataExportRequests  DataExportRequest[]
+  dataDeletionRequests DataDeletionRequest[]
+
+  @@unique([gymId, phone])
+  @@index([gymId])
+  @@index([gymId, status])
+  @@index([gymId, assignedTrainerId])
+  @@index([gymId, expiresAt])
+  @@index([gymId, createdAt])
+  @@map("members")
+}
+
+// ─── Auth OTPs ────────────────────────────────────────────────────────────────
+
+model AuthOtp {
+  id        String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  gymId     String?   @map("gym_id") @db.Uuid
+  phone     String
+  otpHash   String    @map("otp_hash")
+  userType  UserType  @map("user_type")
+  expiresAt DateTime  @map("expires_at")
+  usedAt    DateTime? @map("used_at")
+  attempts  Int       @default(0)
+  createdAt DateTime  @default(now()) @map("created_at")
+
+  gym Gym? @relation(fields: [gymId], references: [id])
+
+  @@index([phone, userType])
+  @@index([gymId])
+  @@map("auth_otps")
+}
+
+// ─── Refresh Tokens ───────────────────────────────────────────────────────────
+// Exactly one of staffId / memberId will be populated per row.
+
+model RefreshToken {
+  id        String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  staffId   String?   @map("staff_id") @db.Uuid
+  memberId  String?   @map("member_id") @db.Uuid
+  userType  UserType  @map("user_type")
+  gymId     String?   @map("gym_id") @db.Uuid
+  tokenHash String    @unique @map("token_hash")
+  expiresAt DateTime  @map("expires_at")
+  revokedAt DateTime? @map("revoked_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+
+  gym    Gym?       @relation(fields: [gymId], references: [id])
+  staff  StaffUser? @relation(fields: [staffId], references: [id])
+  member Member?    @relation(fields: [memberId], references: [id])
+
+  @@index([staffId])
+  @@index([memberId])
+  @@index([gymId])
+  @@map("refresh_tokens")
+}
+
+// ─── Login History ────────────────────────────────────────────────────────────
+
+model LoginHistory {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  userType  UserType @map("user_type")
+  gymId     String?  @map("gym_id") @db.Uuid
+  ip        String?
+  userAgent String?  @map("user_agent")
+  success   Boolean
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([userId, userType])
+  @@index([gymId])
+  @@map("login_history")
+}
+
+// ─── Platform Users ───────────────────────────────────────────────────────────
+
+model PlatformUser {
+  id           String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  email        String       @unique
+  passwordHash String       @map("password_hash")
+  name         String
+  role         PlatformRole
+  totpSecret   String?      @map("totp_secret")
+  totpEnabled  Boolean      @default(false) @map("totp_enabled")
+  ipAllowlist  Json         @default("[]") @map("ip_allowlist")
+  lastLoginAt  DateTime?    @map("last_login_at")
+  isActive     Boolean      @default(true) @map("is_active")
+  createdAt    DateTime     @default(now()) @map("created_at")
+  updatedAt    DateTime     @updatedAt @map("updated_at")
+
+  @@map("platform_users")
+}
+
+// ─── Audit Log ────────────────────────────────────────────────────────────────
+
+model AuditLog {
+  id        String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  gymId     String?     @map("gym_id") @db.Uuid
+  actorId   String      @map("actor_id") @db.Uuid
+  actorType UserType    @map("actor_type")
+  action    AuditAction
+  entity    String
+  entityId  String?     @map("entity_id") @db.Uuid
+  diff      Json?
+  ip        String?
+  userAgent String?     @map("user_agent")
+  createdAt DateTime    @default(now()) @map("created_at")
+
+  gym Gym? @relation(fields: [gymId], references: [id])
+
+  @@index([gymId])
+  @@index([gymId, actorId])
+  @@index([gymId, entity])
+  @@index([gymId, createdAt])
+  @@map("audit_log")
+}
+
+// ─── Member Notes ─────────────────────────────────────────────────────────────
+
+model MemberNote {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  gymId     String   @map("gym_id") @db.Uuid
+  memberId  String   @map("member_id") @db.Uuid
+  staffId   String   @map("staff_id") @db.Uuid
+  note      String
+  createdAt DateTime @default(now()) @map("created_at")
+
+  gym    Gym    @relation(fields: [gymId], references: [id], onDelete: Cascade)
+  member Member @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  @@index([gymId])
+  @@index([memberId])
+  @@map("member_notes")
+}
+
+// ─── Member Freeze History ────────────────────────────────────────────────────
+
+model MemberFreezeHistory {
+  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  gymId       String    @map("gym_id") @db.Uuid
+  memberId    String    @map("member_id") @db.Uuid
+  frozenAt    DateTime  @default(now()) @map("frozen_at")
+  frozenUntil DateTime? @map("frozen_until")
+  unfrozenAt  DateTime? @map("unfrozen_at")
+  reason      String?
+  frozenBy    String    @map("frozen_by") @db.Uuid
+
+  gym    Gym    @relation(fields: [gymId], references: [id], onDelete: Cascade)
+  member Member @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  @@index([gymId])
+  @@index([memberId])
+  @@index([frozenUntil])
+  @@map("member_freeze_history")
+}
+
+// ─── Member Import Jobs ───────────────────────────────────────────────────────
+
+model MemberImportJob {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  gymId       String   @map("gym_id") @db.Uuid
+  createdBy   String   @map("created_by") @db.Uuid
+  totalRows   Int      @map("total_rows")
+  processed   Int      @default(0)
+  succeeded   Int      @default(0)
+  failed      Int      @default(0)
+  errors      Json     @default("[]")
+  status      String   @default("pending")
+  createdAt   DateTime @default(now()) @map("created_at")
+  completedAt DateTime? @map("completed_at")
+
+  gym Gym @relation(fields: [gymId], references: [id], onDelete: Cascade)
+
+  @@index([gymId])
+  @@map("member_import_jobs")
+}
+
+// ─── Check-ins ────────────────────────────────────────────────────────────────
+// NOTE: Partition by month (checkin_YYYY_MM) for tables >10M rows in production.
+// Use the migration SQL to set up declarative partitioning on Postgres 14+.
+
+enum CheckinMethod {
+  qr
+  manual
+  biometric
+}
+
+model Checkin {
+  id          String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  gymId       String        @map("gym_id") @db.Uuid
+  branchId    String?       @map("branch_id") @db.Uuid
+  memberId    String        @map("member_id") @db.Uuid
+  checkedInAt DateTime      @default(now()) @map("checked_in_at")
+  method      CheckinMethod @default(qr)
+  deviceId    String?       @map("device_id")
+  createdBy   String?       @map("created_by") @db.Uuid
+
+  gym    Gym    @relation(fields: [gymId], references: [id], onDelete: Cascade)
+  member Member @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  // Composite indexes for p95 < 200ms report queries
+  @@index([gymId, checkedInAt(sort: Desc)])
+  @@index([gymId, memberId, checkedInAt(sort: Desc)])
+  @@index([gymId, branchId, checkedInAt(sort: Desc)])
+  @@map("checkins")
+}
+
+// ─── Gym Check-in Settings ────────────────────────────────────────────────────
+
+model GymCheckinSettings {
+  gymId           String  @id @map("gym_id") @db.Uuid
+  allowExpired    Boolean @default(true) @map("allow_expired")
+  notifyWhatsApp  Boolean @default(false) @map("notify_whatsapp")
+  notifyMessage   String? @map("notify_message")
+
+  gym Gym @relation(fields: [gymId], references: [id], onDelete: Cascade)
+
+  @@map("gym_checkin_settings")
+}
+
+// ─── Membership Plans ─────────────────────────────────────────────────────────
+
+model MembershipPlan {
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  gymId        String   @map("gym_id") @db.Uuid
+  name         String
+  description  String?
+  pricePaise   Int      @map("price_paise")
+  durationDays Int      @map("duration_days")
+  isActive     Boolean  @default(true) @map("is_active")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  gym      Gym       @relation(fields: [gymId], references: [id], onDelete: Cascade)
+  payments Payment[]
+
+  @@index([gymId])
+  @@index([gymId, isActive])
+  @@map("membership_plans")
+}
+
+// ─── Invoice Sequences ────────────────────────────────────────────────────────
+
+model InvoiceSequence {
+  gymId      String @map("gym_id") @db.Uuid
+  fy         String
+  lastNumber Int    @default(0) @map("last_number")
+
+  gym Gym @relation(fields: [gymId], references: [id], onDelete: Cascade)
+
+  @@id([gymId, fy])
+  @@map("invoice_sequences")
+}
+
+// ─── Payments ─────────────────────────────────────────────────────────────────
+
+enum PaymentMode {
+  upi
+  cash
+  card
+  bank_transfer
+  razorpay
+}
+
+enum PaymentStatus {
+  pending
+  captured
+  failed
+  refunded
+  partially_refunded
+}
+
+model Payment {
+  id                String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  gymId             String        @map("gym_id") @db.Uuid
+  memberId          String        @map("member_id") @db.Uuid
+  planId            String?       @map("plan_id") @db.Uuid
+  amountPaise       Int           @map("amount_paise")
+  gstPct            Decimal       @default(18) @map("gst_pct") @db.Decimal(5, 2)
+  gstAmountPaise    Int           @map("gst_amount_paise")
+  totalPaise        Int           @map("total_paise")
+  mode              PaymentMode
+  status            PaymentStatus @default(captured)
+  txnRef            String?       @map("txn_ref")
+  razorpayPaymentId String?       @unique @map("razorpay_payment_id")
+  razorpayOrderId   String?       @map("razorpay_order_id")
+  invoiceNumber     String?       @unique @map("invoice_number")
+  invoicePdfUrl     String?       @map("invoice_pdf_url")
+  notes             String?
+  paidAt            DateTime      @default(now()) @map("paid_at")
+  createdBy         String?       @map("created_by") @db.Uuid
+  createdAt         DateTime      @default(now()) @map("created_at")
+  updatedAt         DateTime      @updatedAt @map("updated_at")
+
+  gym         Gym             @relation(fields: [gymId], references: [id], onDelete: Cascade)
+  member      Member          @relation(fields: [memberId], references: [id])
+  plan        MembershipPlan? @relation(fields: [planId], references: [id])
+  refunds     Refund[]
+  commissions Commission[]
+
+  @@index([gymId])
+  @@index([gymId, memberId])
+  @@index([gymId, status])
+  @@index([gymId, paidAt(sort: Desc)])
+  @@index([gymId, mode])
+  @@map("payments")
+}
+
+// ─── Refunds ──────────────────────────────────────────────────────────────────
+
+enum RefundStatus {
+  pending
+  processed
+  failed
+}
+
+model Refund {
+  id               String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  gymId            String       @map("gym_id") @db.Uuid
+  paymentId        String       @map("payment_id") @db.Uuid
+  amountPaise      Int          @map("amount_paise")
+  reason           String
+  status           RefundStatus @default(pending)
+  razorpayRefundId String?      @map("razorpay_refund_id")
+  creditNoteNumber String?      @map("credit_note_number")
+  creditNotePdfUrl String?      @map("credit_note_pdf_url")
+  processedBy      String?      @map("processed_by") @db.Uuid
+  refundedAt       DateTime?    @map("refunded_at")
+  createdAt        DateTime     @default(now()) @map("created_at")
+
+  gym     Gym     @relation(fields: [gymId], references: [id], onDelete: Cascade)
+  payment Payment @relation(fields: [paymentId], references: [id])
+
+  @@index([gymId])
+  @@index([paymentId])
+  @@map("refunds")
+}
+
+// ─── Cash Reconciliation ─────────────────────────────────────────────────────
+
+enum ReconciliationStatus {
+  open
+  submitted
+  approved
+  rejected
+}
+
+model CashReconciliation {
+  id            String               @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  gymId         String               @map("gym_id") @db.Uuid
+  date          DateTime             @db.Date
+  expectedPaise Int                  @map("expected_paise")
+  actualPaise   Int                  @map("actual_paise")
+  variancePaise Int                  @map("variance_paise")
+  status        ReconciliationStatus @default(open)
+  submittedBy   String?              @map("submitted_by") @db.Uuid
+  approvedBy    String?              @map("approved_by") @db.Uuid
+  notes         String?
+  approvedAt    DateTime?            @map("approved_at")
+  createdAt     DateTime             @default(now()) @map("created_at")
+
+  gym Gym @relation(fields: [gymId], references: [id], onDelete: Cascade)
+
+  @@unique([gymId, date])
+  @@index([gymId])
+  @@map("cash_reconciliation")
+}
+
+// ─── WhatsApp Templates ────────────────────────────────────────────────────────
+
+enum WhatsappTemplateStatus {
+  pending
+  approved
+  rejected
+}
+
+model WhatsappTemplate {
+  id             String                 @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  gymId          String                 @map("gym_id") @db.Uuid
+  name           String
+  metaTemplateId String?                @map("meta_template_id")
+  body           String
+  variables      Json                   @default("[]")
+  category       String                 @default("UTILITY")
+  status         WhatsappTemplateStatus @default(pending)
+  createdAt      DateTime               @default(now()) @map("created_at")
+  updatedAt      DateTime               @updatedAt @map("updated_at")
+
+  gym              Gym                   @relation(fields: [gymId], references: [id], onDelete: Cascade)
+  renewalConfigs   GymRenewalConfig[]
+  reminders        RenewalReminder[]
+  messages         WhatsappMessage[]
+  campaigns        BroadcastCampaign[]
+  triggerRules     WhatsappTriggerRule[]
+
+  @@index([gymId])
+  @@map("whatsapp_templates")
+}
+
+// ─── Gym Renewal Config ────────────────────────────────────────────────────────
+
+model GymRenewalConfig {
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  gymId        String   @map("gym_id") @db.Uuid
+  triggerType  String   @map("trigger_type")
+  isActive     Boolean  @default(true) @map("is_active")
+  templateId   String?  @map("template_id") @db.Uuid
+  includeOffer Boolean  @default(false) @map("include_offer")
+  offerPct     Int?     @map("offer_pct")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  gym      Gym               @relation(fields: [gymId], references: [id], onDelete: Cascade)
+  template WhatsappTemplate? @relation(fields: [templateId], references: [id])
+
+  @@unique([gymId, triggerType])
+  @@index([gymId])
+  @@map("gym_renewal_configs")
+}
+
+// ─── Renewal Reminders ─────────────────────────────────────────────────────────
+
+enum ReminderChannel {
+  whatsapp
+  sms
+}
+
+enum ReminderStatus {
+  sent
+  delivered
+  failed
+  skipped
+}
+
+model RenewalReminder {
+  id          String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  gymId       String          @map("gym_id") @db.Uuid
+  memberId    String          @map("member_id") @db.Uuid
+  triggerType String          @map("trigger_type")
+  templateId  String?         @map("template_id") @db.Uuid
+  channel     ReminderChannel @default(whatsapp)
+  status      ReminderStatus  @default(sent)
+  sentAt      DateTime        @default(now()) @map("sent_at")
+  errorMsg    String?         @map("error_msg")
+
+  gym      Gym               @relation(fields: [gymId], references: [id], onDelete: Cascade)
+  member   Member            @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  template WhatsappTemplate? @relation(fields: [templateId], references: [id])
+
+  @@index([gymId])
+  @@index([gymId, memberId])
+  @@index([gymId, triggerType, sentAt])
+  @@map("renewal_reminders")
+}
+
+// ─── Renewal Follow-ups ────────────────────────────────────────────────────────
+
+enum FollowUpOutcome {
+  contacted
+  interested
+  not_interested
+  converted
+  no_answer
+}
+
+model RenewalFollowUp {
+  id         String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  gymId      String          @map("gym_id") @db.Uuid
+  memberId   String          @map("member_id") @db.Uuid
+  staffId    String          @map("staff_id") @db.Uuid
+  outcome    FollowUpOutcome @default(contacted)
+  notes      String?
+  followUpAt DateTime?       @map("follow_up_at")
+  createdAt  DateTime        @default(now()) @map("created_at")
+
+  gym    Gym    @relation(fields: [gymId], references: [id], onDelete: Cascade)
+  member Member @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  @@index([gymId])
+  @@index([gymId, memberId])
+  @@index([gymId, createdAt])
+  @@map("renewal_follow_ups")
+}
+
+// ─── WhatsApp Messages ────────────────────────────────────────────────────────
+
+enum WhatsappMessageStatus {
+  queued
+  sent
+  delivered
+  read
+  failed
+  opted_out
+}
+
+model WhatsappMessage {
+  id          String                @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  gymId       String                @map("gym_id") @db.Uuid
+  memberId    String?               @map("member_id") @db.Uuid
+  templateId  String?               @map("template_id") @db.Uuid
+  campaignId  String?               @map("campaign_id") @db.Uuid
+  toPhone     String                @map("to_phone")
+  body        String?
+  mediaUrl    String?               @map("media_url")
+  bspMessageId String?             @unique @map("bsp_message_id")
+  status      WhatsappMessageStatus @default(queued)
+  sentAt      DateTime?             @map("sent_at")
+  deliveredAt DateTime?             @map("delivered_at")
+  readAt      DateTime?             @map("read_at")
+  failedAt    DateTime?             @map("failed_at")
+  error       String?
+  costPaise   Int?                  @map("cost_paise")
+  createdAt   DateTime              @default(now()) @map("created_at")
+
+  gym      Gym                @relation(fields: [gymId], references: [id], onDelete: Cascade)
+  member   Member?            @relation(fields: [memberId], references: [id])
+  template WhatsappTemplate?  @relation(fields: [templateId], references: [id])
+  campaign BroadcastCampaign? @relation(fields: [campaignId], references: [id])
+
+  @@index([gymId])
+  @@index([gymId, memberId])
+  @@index([gymId, status])
+  @@index([gymId, createdAt(sort: Desc)])
+  @@index([campaignId])
+  @@map("whatsapp_messages")
+}
+
+// ─── WhatsApp Opt-outs ────────────────────────────────────────────────────────
+
+model WhatsappOptout {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  gymId      String   @map("gym_id") @db.Uuid
+  memberId   String   @map("member_id") @db.Uuid
+  phone      String
+  reason     String?
+  optedOutAt DateTime @default(now()) @map("opted_out_at")
+
+  gym    Gym    @relation(fields: [gymId], references: [id], onDelete: Cascade)
+  member Member @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  @@unique([gymId, memberId])
+  @@index([gymId])
+  @@index([phone])
+  @@map("whatsapp_optouts")
+}
+
+// ─── Broadcast Campaigns ──────────────────────────────────────────────────────
+
+enum BroadcastStatus {
+  draft
+  scheduled
+  running
+  completed
+  cancelled
+  failed
+}
+
+model BroadcastCampaign {
+  id             String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  gymId          String          @map("gym_id") @db.Uuid
+  templateId     String          @map("template_id") @db.Uuid
+  name           String
+  audienceFilter Json            @default("{}") @map("audience_filter")
+  scheduledFor   DateTime?       @map("scheduled_for")
+  status         BroadcastStatus @default(draft)
+  totalCount     Int             @default(0) @map("total_count")
+  sentCount      Int             @default(0) @map("sent_count")
+  deliveredCount Int             @default(0) @map("delivered_count")
+  readCount      Int             @default(0) @map("read_count")
+  failedCount    Int             @default(0) @map("failed_count")
+  repliedCount   Int             @default(0) @map("replied_count")
+  createdBy      String          @map("created_by") @db.Uuid
+  startedAt      DateTime?       @map("started_at")
+  completedAt    DateTime?       @map("completed_at")
+  createdAt      DateTime        @default(now()) @map("created_at")
+  updatedAt      DateTime        @updatedAt @map("updated_at")
+
+  gym      Gym               @relation(fields: [gymId], references: [id], onDelete: Cascade)
+  template WhatsappTemplate  @relation(fields: [templateId], references: [id])
+  messages WhatsappMessage[]
+
+  @@index([gymId])
+  @@index([gymId, status])
+  @@index([gymId, scheduledFor])
+  @@map("broadcast_campaigns")
+}
+
+// ─── WhatsApp Trigger Rules ───────────────────────────────────────────────────
+
+enum TriggerEvent {
+  member_created
+  payment_success
+  checkin
+  renewal_7d
+  renewal_3d
+  renewal_1d
+  renewal_expired
+  renewal_7d_after
+  renewal_30d_after
+  birthday
+  no_checkin_14d
+  class_booked
+  class_reminder_1h
+  plan_updated
+}
+
+model WhatsappTriggerRule {
+  id         String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  gymId      String       @map("gym_id") @db.Uuid
+  event      TriggerEvent
+  templateId String?      @map("template_id") @db.Uuid
+  isActive   Boolean      @default(true) @map("is_active")
+  config     Json         @default("{}") // e.g. { "delayMinutes": 0 }
+  createdAt  DateTime     @default(now()) @map("created_at")
+  updatedAt  DateTime     @updatedAt @map("updated_at")
+
+  gym      Gym               @relation(fields: [gymId], references: [id], onDelete: Cascade)
+  template WhatsappTemplate? @relation(fields: [templateId], references: [id])
+
+  @@unique([gymId, event])
+  @@index([gymId])
+  @@index([gymId, isActive])
+  @@map("whatsapp_trigger_rules")
+}
+
+// ─── Lead Stages ──────────────────────────────────────────────────────────────
+
+model LeadStage {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  gymId     String   @map("gym_id") @db.Uuid
+  name      String
+  position  Int
+  color     String   @default("#6366f1")
+  isDefault Boolean  @default(false) @map("is_default")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  gym   Gym    @relation(fields: [gymId], references: [id], onDelete: Cascade)
+  leads Lead[]
+
+  @@unique([gymId, name])
+  @@index([gymId, position])
+  @@map("lead_stages")
+}
+
+// ─── Leads ────────────────────────────────────────────────────────────────────
+
+enum LeadSource {
+  walk_in
+  website
+  whatsapp
+  phone_call
+  instagram
+  referral
+  other
+}
+
+enum LeadStatus {
+  open
+  converted
+  lost
+}
+
+model Lead {
+  id            String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  gymId         String     @map("gym_id") @db.Uuid
+  branchId      String?    @map("branch_id") @db.Uuid
+  phone         String
+  name          String
+  email         String?
+  source        LeadSource @default(walk_in)
+  sourceDetails Json?      @map("source_details")
+  stageId       String?    @map("stage_id") @db.Uuid
+  assignedTo    String?    @map("assigned_to") @db.Uuid
+  tags          Json       @default("[]")
+  status        LeadStatus @default(open)
+  lostReason    String?    @map("lost_reason")
+  convertedAt   DateTime?  @map("converted_at")
+  convertedToMemberId String? @map("converted_to_member_id") @db.Uuid
+  followUpAt    DateTime?  @map("follow_up_at")
+  createdAt     DateTime   @default(now()) @map("created_at")
+  updatedAt     DateTime   @updatedAt @map("updated_at")
+
+  gym        Gym             @relation(fields: [gymId], references: [id], onDelete: Cascade)
+  stage      LeadStage?      @relation(fields: [stageId], references: [id])
+  activities LeadActivity[]
+
+  @@unique([gymId, phone])
+  @@index([gymId])
+  @@index([gymId, stageId])
+  @@index([gymId, status])
+  @@index([gymId, assignedTo])
+  @@index([gymId, source])
+  @@index([gymId, createdAt(sort: Desc)])
+  @@map("leads")
+}
+
+// ─── Lead Activities ──────────────────────────────────────────────────────────
+
+enum LeadActivityType {
+  note
+  call
+  whatsapp
+  email
+  visit
+  stage_change
+  converted
+}
+
+model LeadActivity {
+  id        String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  gymId     String           @map("gym_id") @db.Uuid
+  leadId    String           @map("lead_id") @db.Uuid
+  staffId   String?          @map("staff_id") @db.Uuid
+  type      LeadActivityType
+  notes     String?
+  metadata  Json?            @default("{}")
+  createdAt DateTime         @default(now()) @map("created_at")
+
+  gym  Gym  @relation(fields: [gymId], references: [id], onDelete: Cascade)
+  lead Lead @relation(fields: [leadId], references: [id], onDelete: Cascade)
+
+  @@index([gymId])
+  @@index([leadId])
+  @@index([gymId, createdAt(sort: Desc)])
+  @@map("lead_activities")
+}
+
+// ─── Website ──────────────────────────────────────────────────────────────────
+
+enum WebsiteSslStatus {
+  pending
+  active
+  failed
+}
+
+model Website {
+  id                  String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  gymId               String            @unique @map("gym_id") @db.Uuid
+  templateId          String            @default("modern") @map("template_id")
+  customDomain        String?           @unique @map("custom_domain")
+  cloudflareSiteId    String?           @map("cloudflare_site_id")
+  sslStatus           WebsiteSslStatus  @default(pending) @map("ssl_status")
+  isPublished         Boolean           @default(false) @map("is_published")
+  content             Json              @default("{}")
+  seoMeta             Json              @default("{}") @map("seo_meta")
+  publishedAt         DateTime?         @map("published_at")
+  createdAt           DateTime          @default(now()) @map("created_at")
+  updatedAt           DateTime          @updatedAt @map("updated_at")
+
+  gym Gym @relation(fields: [gymId], references: [id], onDelete: Cascade)
+
+  @@map("websites")
+}
+
+// ─── Website Analytics ────────────────────────────────────────────────────────
+
+model WebsiteAnalytics {
+  gymId           String   @map("gym_id") @db.Uuid
+  date            DateTime @db.Date
+  views           Int      @default(0)
+  uniqueVisitors  Int      @default(0) @map("unique_visitors")
+  leadsGenerated  Int      @default(0) @map("leads_generated")
+
+  @@id([gymId, date])
+  @@index([gymId, date(sort: Desc)])
+  @@map("website_analytics")
+}
+
+// ─── Workout Templates ────────────────────────────────────────────────────────
+
+model WorkoutTemplate {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  gymId     String   @map("gym_id") @db.Uuid
+  name      String
+  category  String   @default("general")
+  exercises Json     @default("[]")
+  isPublic  Boolean  @default(false) @map("is_public")
+  createdBy String?  @map("created_by") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  gym Gym @relation(fields: [gymId], references: [id], onDelete: Cascade)
+
+  @@index([gymId])
+  @@index([gymId, category])
+  @@map("workout_templates")
+}
+
+// ─── Workout Plans ────────────────────────────────────────────────────────────
+
+model WorkoutPlan {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  gymId     String   @map("gym_id") @db.Uuid
+  memberId  String   @map("member_id") @db.Uuid
+  trainerId String?  @map("trainer_id") @db.Uuid
+  name      String
+  week      Json     @default("{}")
+  isActive  Boolean  @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  gym    Gym    @relation(fields: [gymId], references: [id], onDelete: Cascade)
+  member Member @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  @@index([gymId])
+  @@index([gymId, memberId])
+  @@index([gymId, trainerId])
+  @@map("workout_plans")
+}
+
+// ─── Diet Plans ───────────────────────────────────────────────────────────────
+
+model DietPlan {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  gymId     String   @map("gym_id") @db.Uuid
+  memberId  String   @map("member_id") @db.Uuid
+  trainerId String?  @map("trainer_id") @db.Uuid
+  meals     Json     @default("{}")
+  calories  Int?
+  macros    Json?
+  isActive  Boolean  @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  gym    Gym    @relation(fields: [gymId], references: [id], onDelete: Cascade)
+  member Member @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  @@index([gymId])
+  @@index([gymId, memberId])
+  @@map("diet_plans")
+}
+
+// ─── Progress Logs ────────────────────────────────────────────────────────────
+
+model ProgressLog {
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  gymId        String   @map("gym_id") @db.Uuid
+  memberId     String   @map("member_id") @db.Uuid
+  weightGrams  Int?     @map("weight_grams")
+  measurements Json?
+  photoUrls    Json     @default("[]") @map("photo_urls")
+  notes        String?
+  loggedAt     DateTime @default(now()) @map("logged_at")
+
+  gym    Gym    @relation(fields: [gymId], references: [id], onDelete: Cascade)
+  member Member @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  @@index([gymId])
+  @@index([gymId, memberId, loggedAt(sort: Desc)])
+  @@map("progress_logs")
+}
+
+// ─── Commissions ─────────────────────────────────────────────────────────────
+
+enum CommissionStatus {
+  pending
+  approved
+  paid
+  cancelled
+}
+
+model Commission {
+  id          String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  gymId       String           @map("gym_id") @db.Uuid
+  trainerId   String           @map("trainer_id") @db.Uuid
+  memberId    String           @map("member_id") @db.Uuid
+  paymentId   String?          @map("payment_id") @db.Uuid
+  amountPaise Int              @map("amount_paise")
+  status      CommissionStatus @default(pending)
+  approvedBy  String?          @map("approved_by") @db.Uuid
+  approvedAt  DateTime?        @map("approved_at")
+  paidAt      DateTime?        @map("paid_at")
+  notes       String?
+  createdAt   DateTime         @default(now()) @map("created_at")
+  updatedAt   DateTime         @updatedAt @map("updated_at")
+
+  gym     Gym      @relation(fields: [gymId], references: [id], onDelete: Cascade)
+  payment Payment? @relation(fields: [paymentId], references: [id])
+
+  @@index([gymId])
+  @@index([gymId, trainerId])
+  @@index([gymId, status])
+  @@index([gymId, trainerId, status])
+  @@map("commissions")
+}
+
+// ─── Class Templates ──────────────────────────────────────────────────────────
+
+model ClassTemplate {
+  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  gymId          String   @map("gym_id") @db.Uuid
+  name           String
+  description    String?
+  capacity       Int
+  durationMin    Int      @map("duration_min")
+  trainerId      String?  @map("trainer_id") @db.Uuid
+  recurrenceRule String?  @map("recurrence_rule")
+  isActive       Boolean  @default(true) @map("is_active")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  gym       Gym             @relation(fields: [gymId], references: [id], onDelete: Cascade)
+  instances ClassInstance[]
+
+  @@index([gymId])
+  @@index([gymId, isActive])
+  @@map("class_templates")
+}
+
+// ─── Class Instances ──────────────────────────────────────────────────────────
+
+enum ClassInstanceStatus {
+  scheduled
+  cancelled
+  completed
+}
+
+model ClassInstance {
+  id         String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  gymId      String              @map("gym_id") @db.Uuid
+  templateId String              @map("template_id") @db.Uuid
+  startsAt   DateTime            @map("starts_at")
+  endsAt     DateTime            @map("ends_at")
+  capacity   Int
+  trainerId  String?             @map("trainer_id") @db.Uuid
+  status     ClassInstanceStatus @default(scheduled)
+  notes      String?
+  createdAt  DateTime            @default(now()) @map("created_at")
+
+  gym      Gym             @relation(fields: [gymId], references: [id], onDelete: Cascade)
+  template ClassTemplate   @relation(fields: [templateId], references: [id])
+  bookings ClassBooking[]
+  waitlist ClassWaitlist[]
+
+  @@index([gymId])
+  @@index([gymId, startsAt])
+  @@index([gymId, trainerId, startsAt])
+  @@map("class_instances")
+}
+
+// ─── Class Bookings ───────────────────────────────────────────────────────────
+
+enum ClassBookingStatus {
+  confirmed
+  cancelled
+  attended
+  no_show
+}
+
+model ClassBooking {
+  id         String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  gymId      String             @map("gym_id") @db.Uuid
+  instanceId String             @map("instance_id") @db.Uuid
+  memberId   String             @map("member_id") @db.Uuid
+  status     ClassBookingStatus @default(confirmed)
+  bookedAt   DateTime           @default(now()) @map("booked_at")
+  cancelledAt DateTime?         @map("cancelled_at")
+
+  gym      Gym           @relation(fields: [gymId], references: [id], onDelete: Cascade)
+  instance ClassInstance @relation(fields: [instanceId], references: [id], onDelete: Cascade)
+  member   Member        @relation(fields: [memberId], references: [id])
+
+  @@unique([instanceId, memberId])
+  @@index([gymId])
+  @@index([gymId, memberId])
+  @@index([instanceId])
+  @@map("class_bookings")
+}
+
+// ─── Class Waitlist ───────────────────────────────────────────────────────────
+
+model ClassWaitlist {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  gymId      String   @map("gym_id") @db.Uuid
+  instanceId String   @map("instance_id") @db.Uuid
+  memberId   String   @map("member_id") @db.Uuid
+  position   Int
+  joinedAt   DateTime @default(now()) @map("joined_at")
+
+  gym      Gym           @relation(fields: [gymId], references: [id], onDelete: Cascade)
+  instance ClassInstance @relation(fields: [instanceId], references: [id], onDelete: Cascade)
+  member   Member        @relation(fields: [memberId], references: [id])
+
+  @@unique([instanceId, memberId])
+  @@index([gymId])
+  @@index([instanceId, position])
+  @@map("class_waitlist")
+}
+
+// ─── Gym Class Settings ───────────────────────────────────────────────────────
+
+model GymClassSettings {
+  gymId                String  @id @map("gym_id") @db.Uuid
+  cancellationHours    Int     @default(2) @map("cancellation_hours")
+  lateCancelForfeits   Boolean @default(true) @map("late_cancel_forfeits")
+  autoWaitlistPromote  Boolean @default(true) @map("auto_waitlist_promote")
+
+  gym Gym @relation(fields: [gymId], references: [id], onDelete: Cascade)
+
+  @@map("gym_class_settings")
+}
+
+// ─── Onboarding Progress ──────────────────────────────────────────────────────
+
+model OnboardingProgress {
+  gymId            String    @id @map("gym_id") @db.Uuid
+  currentStep      Int       @default(1) @map("current_step")
+  completedSteps   Json      @default("[]") @map("completed_steps")
+  // step data saved per step so wizard resumes from any point
+  stepData         Json      @default("{}") @map("step_data")
+  completedAt      DateTime? @map("completed_at")
+  createdAt        DateTime  @default(now()) @map("created_at")
+  updatedAt        DateTime  @updatedAt @map("updated_at")
+
+  gym Gym @relation(fields: [gymId], references: [id], onDelete: Cascade)
+
+  @@map("onboarding_progress")
+}
+
+// ─── Platform Subscriptions ───────────────────────────────────────────────────
+
+enum SubscriptionStatus {
+  trial
+  active
+  past_due
+  cancelled
+  churned
+}
+
+model PlatformSubscription {
+  id                    String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  gymId                 String             @unique @map("gym_id") @db.Uuid
+  planTier              String             @map("plan_tier")
+  mrrPaise              Int                @map("mrr_paise")
+  status                SubscriptionStatus @default(trial)
+  razorpaySubscriptionId String?           @unique @map("razorpay_subscription_id")
+  startedAt             DateTime           @default(now()) @map("started_at")
+  trialEndsAt           DateTime?          @map("trial_ends_at")
+  convertedAt           DateTime?          @map("converted_at")
+  cancelledAt           DateTime?          @map("cancelled_at")
+  createdAt             DateTime           @default(now()) @map("created_at")
+  updatedAt             DateTime           @updatedAt @map("updated_at")
+
+  gym Gym @relation(fields: [gymId], references: [id], onDelete: Cascade)
+
+  @@index([status])
+  @@map("platform_subscriptions")
+}
+
+// ─── Consents (DPDP Act 2023) ─────────────────────────────────────────────────
+
+enum ConsentType {
+  operational
+  marketing
+  analytics
+}
+
+model Consent {
+  id         String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  gymId      String      @map("gym_id") @db.Uuid
+  memberId   String      @map("member_id") @db.Uuid
+  type       ConsentType
+  granted    Boolean     @default(true)
+  grantedAt  DateTime    @default(now()) @map("granted_at")
+  revokedAt  DateTime?   @map("revoked_at")
+
+  gym    Gym    @relation(fields: [gymId], references: [id], onDelete: Cascade)
+  member Member @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  @@unique([gymId, memberId, type])
+  @@index([gymId])
+  @@index([memberId])
+  @@map("consents")
+}
+
+// ─── Data Export Requests ──────────────────────────────────────────────────────
+
+enum DataRequestStatus {
+  pending
+  processing
+  completed
+  failed
+}
+
+model DataExportRequest {
+  id          String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  gymId       String            @map("gym_id") @db.Uuid
+  memberId    String            @map("member_id") @db.Uuid
+  status      DataRequestStatus @default(pending)
+  fileUrl     String?           @map("file_url")
+  createdAt   DateTime          @default(now()) @map("created_at")
+  completedAt DateTime?         @map("completed_at")
+
+  gym    Gym    @relation(fields: [gymId], references: [id], onDelete: Cascade)
+  member Member @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  @@index([gymId])
+  @@index([memberId])
+  @@map("data_export_requests")
+}
+
+// ─── Data Deletion Requests ───────────────────────────────────────────────────
+
+enum DeletionStatus {
+  pending
+  approved
+  rejected
+  deleted
+}
+
+model DataDeletionRequest {
+  id          String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  gymId       String         @map("gym_id") @db.Uuid
+  memberId    String         @map("member_id") @db.Uuid
+  status      DeletionStatus @default(pending)
+  reason      String?
+  requestedAt DateTime       @default(now()) @map("requested_at")
+  approvedAt  DateTime?      @map("approved_at")
+  approvedBy  String?        @map("approved_by") @db.Uuid
+  deletedAt   DateTime?      @map("deleted_at")
+
+  gym    Gym    @relation(fields: [gymId], references: [id], onDelete: Cascade)
+  member Member @relation(fields: [memberId], references: [id])
+
+  @@index([gymId])
+  @@index([gymId, status])
+  @@map("data_deletion_requests")
+}
+
+

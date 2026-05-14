@@ -1,0 +1,27 @@
+{
+  "name": "grwfit",
+  "version": "0.0.1",
+  "private": true,
+  "packageManager": "pnpm@9.1.0",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "dev": "turbo dev",
+    "build": "turbo build",
+    "lint": "turbo lint",
+    "test": "turbo test",
+    "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md}\"",
+    "db:generate": "pnpm --filter @grwfit/db db:generate",
+    "db:migrate": "pnpm --filter @grwfit/db db:migrate",
+    "db:migrate:dev": "pnpm --filter @grwfit/db db:migrate:dev",
+    "db:seed": "pnpm --filter @grwfit/db db:seed",
+    "db:studio": "pnpm --filter @grwfit/db db:studio"
+  },
+  "devDependencies": {
+    "turbo": "^2.1.0",
+    "prettier": "^3.2.5",
+    "typescript": "^5.4.5",
+    "@types/node": "^20.12.0"
+  }
+}

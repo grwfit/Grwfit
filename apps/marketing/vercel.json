@@ -1,0 +1,6 @@
+{
+  "framework": "nextjs",
+  "installCommand": "cd ../.. && npx pnpm@9.1.0 install --frozen-lockfile",
+  "buildCommand": "cd ../.. && npx pnpm@9.1.0 --filter @grwfit/shared-types build && npx pnpm@9.1.0 --filter @grwfit/ui build && npx pnpm@9.1.0 --filter @grwfit/marketing build",
+  "outputDirectory": ".next"
+}

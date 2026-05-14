@@ -1,0 +1,34 @@
+{
+  "nav": {
+    "dashboard": "डैशबोर्ड",
+    "members": "सदस्य",
+    "checkins": "चेक-इन",
+    "payments": "भुगतान",
+    "leads": "लीड्स",
+    "reports": "रिपोर्ट",
+    "staff": "स्टाफ",
+    "settings": "सेटिंग्स"
+  },
+  "common": {
+    "loading": "लोड हो रहा है...",
+    "error": "कुछ गलत हो गया",
+    "empty": "कोई डेटा नहीं मिला",
+    "save": "सहेजें",
+    "cancel": "रद्द करें",
+    "delete": "हटाएं",
+    "edit": "संपादित करें",
+    "create": "बनाएं",
+    "search": "खोजें...",
+    "filter": "फ़िल्टर",
+    "export": "निर्यात"
+  },
+  "auth": {
+    "login": "लॉगिन",
+    "logout": "लॉगआउट",
+    "phone": "फ़ोन नंबर",
+    "otp": "OTP",
+    "sendOtp": "OTP भेजें",
+    "verifyOtp": "OTP सत्यापित करें",
+    "resendOtp": "OTP पुनः भेजें"
+  }
+}

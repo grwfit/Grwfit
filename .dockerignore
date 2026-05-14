@@ -1,0 +1,39 @@
+# Git
+.git
+.gitignore
+
+# Node
+**/node_modules
+**/.npm
+
+# Build artifacts
+**/.next
+**/dist
+**/.turbo
+**/out
+**/build
+
+# Env files — never bake into image
+**/.env
+**/.env.local
+**/.env.*.local
+
+# Dev / editor
+.DS_Store
+**/*.log
+.vscode
+.idea
+*.md
+
+# Tests
+**/coverage
+**/__tests__
+**/*.test.ts
+**/*.spec.ts
+
+# Frontend apps not needed for API build
+apps/staff
+apps/admin
+apps/member-web
+apps/marketing
+apps/sites

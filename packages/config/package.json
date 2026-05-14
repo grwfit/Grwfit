@@ -1,0 +1,16 @@
+{
+  "name": "@grwfit/config",
+  "version": "0.0.1",
+  "private": true,
+  "exports": {
+    "./tsconfig/base": "./tsconfig/base.json",
+    "./tsconfig/nextjs": "./tsconfig/nextjs.json",
+    "./tsconfig/nestjs": "./tsconfig/nestjs.json",
+    "./eslint/base": "./eslint/base.js",
+    "./eslint/next": "./eslint/next.js",
+    "./tailwind/base": "./tailwind/base.ts"
+  },
+  "devDependencies": {
+    "typescript": "^5.4.5"
+  }
+}
