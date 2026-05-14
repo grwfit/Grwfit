@@ -4,7 +4,7 @@ services:
     runtime: node
     rootDir: .
     buildCommand: pnpm install --frozen-lockfile && pnpm --filter @grwfit/api run build
-    startCommand: node apps/api/dist/main.js
+    startCommand: node dist/main.js
     plan: free
     healthCheckPath: /api/v1/health
     autoDeploy: true
