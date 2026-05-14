@@ -3,12 +3,7 @@ services:
     name: grwfit-api
     runtime: node
     rootDir: .
-    buildCommand: >-
-      pnpm install --frozen-lockfile &&
-      pnpm --filter @grwfit/db exec prisma generate &&
-      pnpm --filter @grwfit/db build &&
-      pnpm --filter @grwfit/shared-types build &&
-      pnpm --filter @grwfit/api run build
+    buildCommand: pnpm install --frozen-lockfile && pnpm --filter @grwfit/api run build
     startCommand: node apps/api/dist/main.js
     plan: free
     healthCheckPath: /api/v1/health

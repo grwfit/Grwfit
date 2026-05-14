@@ -3,7 +3,7 @@
   "version": "0.0.1",
   "private": true,
   "scripts": {
-    "build": "./node_modules/.bin/nest build",
+    "build": "pnpm --filter @grwfit/shared-types build && pnpm --filter @grwfit/db exec prisma generate && pnpm --filter @grwfit/db build && ./node_modules/.bin/nest build",
     "dev": "./node_modules/.bin/nest start --watch",
     "start": "node dist/main",
     "lint": "eslint src/ --ext .ts",
