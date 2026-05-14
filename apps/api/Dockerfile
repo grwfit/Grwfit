@@ -35,7 +35,7 @@ RUN pnpm --filter @grwfit/db exec prisma generate
 RUN pnpm --filter @grwfit/shared-types build
 
 # Build the API
-RUN pnpm --filter @grwfit/api exec nest build
+RUN pnpm --filter @grwfit/api run build
 
 # ── Stage 3: runner ───────────────────────────────────────────────────────────
 FROM node:20-alpine AS runner
