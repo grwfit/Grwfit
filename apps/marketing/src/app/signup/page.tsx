@@ -40,7 +40,7 @@ export default function SignupPage() {
           phone: form.phone.startsWith("+91")
             ? form.phone
             : `+91${form.phone.replace(/\s/g, "")}`,
-          email: form.email || undefined,
+          email: form.email,
           city: form.city || undefined,
         }),
       });
@@ -141,9 +141,10 @@ export default function SignupPage() {
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Email (optional)
+                  Email *
                 </label>
                 <input
+                  required
                   type="email"
                   value={form.email}
                   onChange={set("email")}

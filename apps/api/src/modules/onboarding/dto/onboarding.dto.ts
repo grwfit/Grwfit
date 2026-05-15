@@ -7,7 +7,7 @@ export class GymSignupDto {
   @ApiProperty() @IsString() gymName!: string;
   @ApiProperty() @IsString() ownerName!: string;
   @ApiProperty() @IsString() phone!: string;
-  @ApiPropertyOptional() @IsOptional() @IsEmail() email?: string;
+  @ApiProperty() @IsEmail() email!: string;
   @ApiPropertyOptional() @IsOptional() @IsString() city?: string;
 }
 

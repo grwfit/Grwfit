@@ -31,7 +31,7 @@ export default function SignupPage() {
         gymName: form.gymName,
         ownerName: form.ownerName,
         phone: form.phone.startsWith("+91") ? form.phone : `+91${form.phone}`,
-        email: form.email || undefined,
+        email: form.email,
         city: form.city || undefined,
       });
       toast.success("Account created! Let's set up your gym.");
@@ -77,8 +77,8 @@ export default function SignupPage() {
                 </div>
               </div>
               <div>
-                <label className="block text-sm font-medium mb-1">Email (optional)</label>
-                <Input value={form.email} onChange={set("email")} type="email" placeholder="you@gmail.com" />
+                <label className="block text-sm font-medium mb-1">Email *</label>
+                <Input value={form.email} onChange={set("email")} type="email" placeholder="you@gmail.com" required />
               </div>
               <div>
                 <label className="block text-sm font-medium mb-1">City (optional)</label>
