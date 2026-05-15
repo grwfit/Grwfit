@@ -12,7 +12,7 @@ import type { LogProgressDto } from "../plans/dto/plans.dto";
 @ApiTags("Member Portal")
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard)
-@Controller("api/v1/members/me")
+@Controller("members/me")
 export class MemberPortalController {
   private readonly prisma = getPrismaClient();
 

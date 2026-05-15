@@ -19,7 +19,7 @@ import type { TriggerEvent } from "@grwfit/db";
 @ApiTags("WhatsApp")
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard)
-@Controller("api/v1/whatsapp")
+@Controller("whatsapp")
 export class WhatsAppController {
   constructor(
     private readonly whatsappService: WhatsAppModuleService,

@@ -33,7 +33,7 @@ class AuditLogQueryDto {
 @ApiTags("Compliance")
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard)
-@Controller("api/v1/gyms/:gymId/compliance")
+@Controller("gyms/:gymId/compliance")
 export class ComplianceController {
   constructor(private readonly service: ComplianceService) {}
 
@@ -77,7 +77,7 @@ export class ComplianceController {
 @ApiTags("Member Compliance")
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard)
-@Controller("api/v1/members/me/compliance")
+@Controller("members/me/compliance")
 export class MemberComplianceController {
   constructor(private readonly service: ComplianceService) {}
 

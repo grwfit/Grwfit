@@ -12,7 +12,7 @@ import type {
 } from "./dto/website.dto";
 
 @ApiTags("Website")
-@Controller("api/v1")
+@Controller("")
 export class WebsiteController {
   constructor(private readonly service: WebsiteService) {}
 

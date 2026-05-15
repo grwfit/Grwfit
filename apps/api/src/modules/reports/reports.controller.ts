@@ -8,7 +8,7 @@ import type { ReportsFilterDto, AttendanceReportDto } from "./dto/reports.dto";
 @ApiTags("Reports")
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard)
-@Controller("api/v1/gyms/:gymId/reports")
+@Controller("gyms/:gymId/reports")
 export class ReportsController {
   constructor(private readonly service: ReportsService) {}
 

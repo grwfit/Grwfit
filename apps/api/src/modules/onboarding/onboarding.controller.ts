@@ -15,7 +15,7 @@ import type {
 const IS_PROD = process.env["NODE_ENV"] === "production";
 
 @ApiTags("Onboarding")
-@Controller("api/v1/onboarding")
+@Controller("onboarding")
 export class OnboardingController {
   constructor(private readonly service: OnboardingService) {}
 

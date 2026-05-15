@@ -16,7 +16,7 @@ import type {
 @ApiTags("Leads")
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard)
-@Controller("api/v1/gyms/:gymId/leads")
+@Controller("gyms/:gymId/leads")
 export class LeadsController {
   constructor(private readonly leadsService: LeadsService) {}
 

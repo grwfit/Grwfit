@@ -15,7 +15,7 @@ import type {
 @ApiTags("Classes")
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard)
-@Controller("api/v1/gyms/:gymId/classes")
+@Controller("gyms/:gymId/classes")
 export class ClassesController {
   constructor(private readonly service: ClassesService) {}
 
