@@ -6,7 +6,7 @@ import { Dumbbell, CheckCircle } from "lucide-react";
 import { Nav, Footer } from "@/components/nav";
 
 const API_URL =
-  process.env["NEXT_PUBLIC_API_URL"] ?? "http://localhost:3000/api/v1";
+  process.env["NEXT_PUBLIC_API_URL"] ?? "https://grwfit.onrender.com/api/v1";
 
 export default function SignupPage() {
   const [form, setForm] = useState({
