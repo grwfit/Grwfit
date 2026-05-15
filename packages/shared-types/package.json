@@ -15,9 +15,7 @@
     "dev": "tsc --watch"
   },
   "dependencies": {
-    "@grwfit/config": "workspace:*"
-  },
-  "devDependencies": {
+    "@grwfit/config": "workspace:*",
     "typescript": "5.4.5"
   }
 }
