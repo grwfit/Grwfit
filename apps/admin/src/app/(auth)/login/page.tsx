@@ -18,9 +18,11 @@ export default function AdminLoginPage() {
   const handleLogin = async () => {
     setIsLoading(true);
     try {
-      // Token is set as httpOnly cookie by the API — no sessionStorage for tokens
-      await apiClient.post("/admin/auth/login", { email, password, totpCode });
-      sessionStorage.setItem("platform_user_email", email);
+      const res = await apiClient.post<{
+        data: { user: { name: string; email: string; role: string }; accessToken: string };
+      }>("/admin/auth/login", { email, password, totpCode });
+      sessionStorage.setItem("platform_token", res.data.data.accessToken);
+      sessionStorage.setItem("platform_user_email", res.data.data.user.email);
       router.replace("/overview");
     } catch (err: unknown) {
       const msg =
