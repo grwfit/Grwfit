@@ -49,14 +49,21 @@ async function bootstrap() {
     "https://admin.grwfit.com",
     "https://m.grwfit.com",
     "https://grwfit.com",
+    "https://www.grwfit.com",
   ];
   if (nodeEnv !== "production") {
     corsOrigins.push("http://localhost:3000", "http://localhost:3001", "http://localhost:3002", "http://localhost:3003");
   }
 
   app.enableCors({
-    origin: corsOrigins,
-    credentials: true, // required for cookies
+    origin: (origin, callback) => {
+      if (!origin || corsOrigins.includes(origin) || /\.vercel\.app$/.test(origin)) {
+        callback(null, true);
+      } else {
+        callback(null, false);
+      }
+    },
+    credentials: true,
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization"],
   });
