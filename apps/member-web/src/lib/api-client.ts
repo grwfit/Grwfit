@@ -25,7 +25,9 @@ apiClient.interceptors.response.use(
           await apiClient.post("/auth/refresh");
           return apiClient(axiosError.config);
         } catch {
-          if (typeof window !== "undefined") window.location.href = "/login";
+          if (typeof window !== "undefined" && !window.location.pathname.startsWith("/login")) {
+            window.location.href = "/login";
+          }
         }
       }
     }

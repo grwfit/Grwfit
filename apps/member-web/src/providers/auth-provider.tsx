@@ -1,8 +1,10 @@
 "use client";
 
 import { createContext, useContext, useEffect, useState, useCallback } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import { apiClient } from "@/lib/api-client";
+
+const PUBLIC_PATHS = ["/login"];
 
 interface MemberSession {
   userId: string;
@@ -39,6 +41,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<MemberSession | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();
+  const pathname = usePathname();
+  const isPublic = PUBLIC_PATHS.some((p) => pathname?.startsWith(p));
 
   const refreshSession = useCallback(async () => {
     try {
@@ -50,8 +54,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   useEffect(() => {
+    if (isPublic) { setIsLoading(false); return; }
     refreshSession().finally(() => setIsLoading(false));
-  }, [refreshSession]);
+  }, [refreshSession, isPublic]);
 
   const logout = useCallback(async () => {
     try { await apiClient.post("/auth/logout"); } catch { /* ignore */ }

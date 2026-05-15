@@ -28,11 +28,19 @@ export class TenantMiddleware implements NestMiddleware {
     if (!token) return next();
 
     try {
-      const secret = this.configService.get("jwt.accessSecret", { infer: true });
+      // Decode header to detect token type before verifying with correct secret
+      const decoded = this.jwtService.decode(token) as { type?: string } | null;
+      const isPlatform = decoded?.type === "platform";
+
+      const secret = isPlatform
+        ? this.configService.get("jwt.platformSecret", { infer: true })
+        : this.configService.get("jwt.accessSecret", { infer: true });
+
       const payload = this.jwtService.verify<{
         sub: string;
         gymId?: string;
         type: string;
+        platformRole?: string;
         role?: string;
         branchId?: string;
       }>(token, { secret });
@@ -40,10 +48,10 @@ export class TenantMiddleware implements NestMiddleware {
       req.userId = payload.sub;
       req.userType = payload.type;
       req.gymId = payload.gymId;
-      req.userRole = payload.role;
+      req.userRole = payload.platformRole ?? payload.role;
       req.branchId = payload.branchId ?? null;
 
-      // Set Postgres config vars for RLS — run in a single round-trip
+      // Set Postgres config vars for RLS — only for gym-scoped tokens
       if (payload.gymId) {
         const prisma = getPrismaClient();
         await prisma.$executeRawUnsafe(
