@@ -1,4 +1,4 @@
-import { NestFactory, Reflector } from "@nestjs/core";
+import { NestFactory } from "@nestjs/core";
 import { ValidationPipe, Logger } from "@nestjs/common";
 import { SwaggerModule, DocumentBuilder } from "@nestjs/swagger";
 import { ConfigService } from "@nestjs/config";
@@ -41,21 +41,21 @@ async function bootstrap() {
     }
   });
 
-  // CORS — allow cookies (credentials: true)
+  const corsOrigins = [
+    "https://grwfit.onrender.com",
+    "https://api.grwfit.com",
+    "https://crm.grwfit.com",
+    "https://app.grwfit.com",
+    "https://admin.grwfit.com",
+    "https://m.grwfit.com",
+    "https://grwfit.com",
+  ];
+  if (nodeEnv !== "production") {
+    corsOrigins.push("http://localhost:3000", "http://localhost:3001", "http://localhost:3002", "http://localhost:3003");
+  }
+
   app.enableCors({
-    origin: [
-      "https://grwfit.onrender.com",
-      "https://api.grwfit.com",
-      "https://crm.grwfit.com",
-      "https://app.grwfit.com",
-      "https://admin.grwfit.com",
-      "https://m.grwfit.com",
-      "https://grwfit.com",
-      "http://localhost:3000",
-      "http://localhost:3001",
-      "http://localhost:3002",
-      "http://localhost:3003",
-    ],
+    origin: corsOrigins,
     credentials: true, // required for cookies
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization"],
