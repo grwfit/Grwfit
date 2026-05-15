@@ -42,7 +42,7 @@
     "pdfkit": "^0.15.0",
     "speakeasy": "^2.0.0",
     "uuid": "^9.0.1",
-    "typescript": "^5.4.5",
+    "typescript": "5.4.5",
     "@grwfit/config": "workspace:*",
     "@types/bcrypt": "^5.0.2",
     "@types/cookie-parser": "^1.4.7",
