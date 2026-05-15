@@ -8,39 +8,37 @@ import { OtpInput } from "@/components/auth/otp-input";
 import { apiClient } from "@/lib/api-client";
 import { toast } from "sonner";
 
-type Step = "phone" | "otp";
+type Step = "email" | "otp";
 
 export default function MemberLoginPage() {
-  const [step, setStep] = useState<Step>("phone");
-  const [phone, setPhone] = useState("");
+  const [step, setStep] = useState<Step>("email");
+  const [email, setEmail] = useState("");
   const [otp, setOtp] = useState("");
   const [resendTimer, setResendTimer] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
 
   const handleSendOtp = useCallback(async () => {
-    const formatted = phone.trim().startsWith("+91") ? phone.trim() : `+91${phone.trim()}`;
     setIsLoading(true);
     try {
-      await apiClient.post("/auth/otp/request", { phone: formatted, userType: "member" });
+      await apiClient.post("/auth/otp/request", { email: email.trim(), userType: "member" });
       setStep("otp");
       startResendTimer();
-      toast.success("OTP sent to your WhatsApp");
+      toast.success("OTP sent to your email");
     } catch (err: unknown) {
       const msg = extractError(err) ?? "Failed to send OTP";
       toast.error(msg);
     } finally {
       setIsLoading(false);
     }
-  }, [phone]);
+  }, [email]);
 
   const handleVerifyOtp = useCallback(async () => {
-    const formatted = phone.trim().startsWith("+91") ? phone.trim() : `+91${phone.trim()}`;
     setIsLoading(true);
     try {
       const res = await apiClient.post<{
         data: { user: { id: string; name: string; type: string }; gymId: string | null };
-      }>("/auth/otp/verify", { phone: formatted, otp, userType: "member" });
+      }>("/auth/otp/verify", { email: email.trim(), otp, userType: "member" });
 
       const { user, gymId } = res.data.data;
       sessionStorage.setItem("auth_user", JSON.stringify(user));
@@ -53,7 +51,7 @@ export default function MemberLoginPage() {
     } finally {
       setIsLoading(false);
     }
-  }, [phone, otp, router]);
+  }, [email, otp, router]);
 
   const handleOtpChange = useCallback(
     (val: string) => {
@@ -81,39 +79,31 @@ export default function MemberLoginPage() {
           </div>
           <CardTitle className="text-2xl">Member Login</CardTitle>
           {step === "otp" && (
-            <p className="text-sm text-muted-foreground mt-1">
-              Sent to +91 {phone}
-            </p>
+            <p className="text-sm text-muted-foreground mt-1">OTP sent to {email}</p>
           )}
         </CardHeader>
 
         <CardContent className="space-y-5 pt-4">
-          {step === "phone" && (
+          {step === "email" && (
             <>
               <div className="space-y-1.5">
-                <label className="text-sm font-medium">Phone Number</label>
-                <div className="flex">
-                  <span className="flex items-center rounded-l-md border border-r-0 bg-muted px-3 text-sm text-muted-foreground select-none">
-                    +91
-                  </span>
-                  <Input
-                    placeholder="9876543210"
-                    value={phone}
-                    onChange={(e) => setPhone(e.target.value.replace(/\D/g, "").slice(0, 10))}
-                    onKeyDown={(e) => { if (e.key === "Enter") void handleSendOtp(); }}
-                    className="rounded-l-none"
-                    type="tel"
-                    autoFocus
-                  />
-                </div>
+                <label className="text-sm font-medium">Email Address</label>
+                <Input
+                  placeholder="you@example.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === "Enter") void handleSendOtp(); }}
+                  type="email"
+                  autoFocus
+                  autoComplete="email"
+                />
               </div>
               <Button
                 className="w-full"
                 onClick={() => void handleSendOtp()}
-                loading={isLoading}
-                disabled={phone.length < 10}
+                disabled={!email.includes("@") || isLoading}
               >
-                Send OTP via WhatsApp
+                {isLoading ? "Sending…" : "Send OTP"}
               </Button>
             </>
           )}
@@ -127,17 +117,16 @@ export default function MemberLoginPage() {
               <Button
                 className="w-full"
                 onClick={() => void handleVerifyOtp()}
-                loading={isLoading}
-                disabled={otp.length < 6}
+                disabled={otp.length < 6 || isLoading}
               >
-                Verify OTP
+                {isLoading ? "Verifying…" : "Verify OTP"}
               </Button>
               <div className="flex justify-between text-sm">
                 <button
                   className="text-muted-foreground hover:text-foreground"
-                  onClick={() => { setStep("phone"); setOtp(""); }}
+                  onClick={() => { setStep("email"); setOtp(""); }}
                 >
-                  ← Change number
+                  ← Change email
                 </button>
                 <button
                   className="text-primary disabled:text-muted-foreground"

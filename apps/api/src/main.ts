@@ -45,9 +45,12 @@ async function bootstrap() {
   app.enableCors({
     origin: [
       "https://grwfit.onrender.com",
+      "https://api.grwfit.com",
+      "https://crm.grwfit.com",
       "https://app.grwfit.com",
       "https://admin.grwfit.com",
       "https://m.grwfit.com",
+      "https://grwfit.com",
       "http://localhost:3000",
       "http://localhost:3001",
       "http://localhost:3002",

@@ -8,7 +8,7 @@ import { OtpInput } from "@/components/auth/otp-input";
 import { apiClient } from "@/lib/api-client";
 import { toast } from "sonner";
 
-type Step = "phone" | "otp" | "gym-select";
+type Step = "email" | "otp" | "gym-select";
 
 interface GymOption {
   id: string;
@@ -19,7 +19,7 @@ interface GymOption {
 
 interface VerifyResponse {
   data: {
-    user: { id: string; name: string; phone: string; role?: string; type: string };
+    user: { id: string; name: string; email: string | null; role?: string; type: string };
     gymId: string | null;
     gyms?: GymOption[];
     preSelectToken?: string;
@@ -27,8 +27,8 @@ interface VerifyResponse {
 }
 
 export default function StaffLoginPage() {
-  const [step, setStep] = useState<Step>("phone");
-  const [phone, setPhone] = useState("");
+  const [step, setStep] = useState<Step>("email");
+  const [email, setEmail] = useState("");
   const [otp, setOtp] = useState("");
   const [resendTimer, setResendTimer] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
@@ -37,34 +37,31 @@ export default function StaffLoginPage() {
   const router = useRouter();
 
   const handleSendOtp = useCallback(async () => {
-    const formatted = phone.trim().startsWith("+91") ? phone.trim() : `+91${phone.trim()}`;
     setIsLoading(true);
     try {
-      await apiClient.post("/auth/otp/request", { phone: formatted, userType: "staff" });
+      await apiClient.post("/auth/otp/request", { email: email.trim(), userType: "staff" });
       setStep("otp");
       startResendTimer();
-      toast.success("OTP sent to your WhatsApp");
+      toast.success("OTP sent to your email");
     } catch (err: unknown) {
-      const msg = extractErrorMessage(err) ?? "Failed to send OTP. Check your number.";
+      const msg = extractErrorMessage(err) ?? "Failed to send OTP. Check your email address.";
       toast.error(msg);
     } finally {
       setIsLoading(false);
     }
-  }, [phone]);
+  }, [email]);
 
   const handleVerifyOtp = useCallback(async () => {
-    const formatted = phone.trim().startsWith("+91") ? phone.trim() : `+91${phone.trim()}`;
     setIsLoading(true);
     try {
       const res = await apiClient.post<VerifyResponse>("/auth/otp/verify", {
-        phone: formatted,
+        email: email.trim(),
         otp,
         userType: "staff",
       });
 
       const { user, gymId, gyms: gymList, preSelectToken: pst } = res.data.data;
 
-      // Store non-sensitive user info for display (NOT the token)
       sessionStorage.setItem("auth_user", JSON.stringify(user));
 
       if (gymList && gymList.length > 1 && pst) {
@@ -83,15 +80,12 @@ export default function StaffLoginPage() {
     } finally {
       setIsLoading(false);
     }
-  }, [phone, otp, router]);
+  }, [email, otp, router]);
 
-  // Auto-submit when all 6 digits are entered
   const handleOtpChange = useCallback(
     (val: string) => {
       setOtp(val);
-      if (val.length === 6 && !isLoading) {
-        void handleVerifyOtp();
-      }
+      if (val.length === 6 && !isLoading) void handleVerifyOtp();
     },
     [handleVerifyOtp, isLoading],
   );
@@ -126,13 +120,6 @@ export default function StaffLoginPage() {
     }, 1000);
   }, []);
 
-  const handlePhoneKeyDown = useCallback(
-    (e: React.KeyboardEvent) => {
-      if (e.key === "Enter") void handleSendOtp();
-    },
-    [handleSendOtp],
-  );
-
   return (
     <div className="flex min-h-screen items-center justify-center bg-background p-4">
       <Card className="w-full max-w-md shadow-lg">
@@ -145,14 +132,14 @@ export default function StaffLoginPage() {
           <CardTitle className="text-2xl font-bold">
             {step === "gym-select" ? "Select your gym" : "Staff Login"}
           </CardTitle>
-          {step === "phone" && (
+          {step === "email" && (
             <p className="text-sm text-muted-foreground mt-1">
-              Enter your registered phone number
+              Enter your registered email address
             </p>
           )}
           {step === "otp" && (
             <p className="text-sm text-muted-foreground mt-1">
-              OTP sent to <span className="font-medium">+91 {phone}</span>
+              OTP sent to <span className="font-medium">{email}</span>
             </p>
           )}
           {step === "gym-select" && (
@@ -163,35 +150,29 @@ export default function StaffLoginPage() {
         </CardHeader>
 
         <CardContent className="space-y-5 pt-4">
-          {step === "phone" && (
+          {step === "email" && (
             <>
               <div className="space-y-1.5">
-                <label className="text-sm font-medium">Phone Number</label>
-                <div className="flex">
-                  <span className="flex items-center rounded-l-md border border-r-0 bg-muted px-3 text-sm text-muted-foreground select-none">
-                    +91
-                  </span>
-                  <Input
-                    placeholder="9876543210"
-                    value={phone}
-                    onChange={(e) => setPhone(e.target.value.replace(/\D/g, "").slice(0, 10))}
-                    onKeyDown={handlePhoneKeyDown}
-                    className="rounded-l-none"
-                    type="tel"
-                    autoFocus
-                  />
-                </div>
+                <label className="text-sm font-medium">Email Address</label>
+                <Input
+                  placeholder="you@yourgym.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === "Enter") void handleSendOtp(); }}
+                  type="email"
+                  autoFocus
+                  autoComplete="email"
+                />
                 <p className="text-xs text-muted-foreground">
-                  We&apos;ll send a 6-digit OTP via WhatsApp
+                  A 6-digit OTP will be sent to this email
                 </p>
               </div>
               <Button
                 className="w-full"
                 onClick={() => void handleSendOtp()}
-                loading={isLoading}
-                disabled={phone.length < 10}
+                disabled={!email.includes("@") || isLoading}
               >
-                Send OTP
+                {isLoading ? "Sending…" : "Send OTP"}
               </Button>
             </>
           )}
@@ -202,29 +183,23 @@ export default function StaffLoginPage() {
                 <label className="text-sm font-medium text-center block">
                   Enter 6-digit OTP
                 </label>
-                <OtpInput
-                  value={otp}
-                  onChange={handleOtpChange}
-                  disabled={isLoading}
-                  autoFocus
-                />
+                <OtpInput value={otp} onChange={handleOtpChange} disabled={isLoading} autoFocus />
               </div>
 
               <Button
                 className="w-full"
                 onClick={() => void handleVerifyOtp()}
-                loading={isLoading}
-                disabled={otp.length < 6}
+                disabled={otp.length < 6 || isLoading}
               >
-                Verify OTP
+                {isLoading ? "Verifying…" : "Verify OTP"}
               </Button>
 
               <div className="flex items-center justify-between text-sm">
                 <button
                   className="text-muted-foreground hover:text-foreground transition-colors"
-                  onClick={() => { setStep("phone"); setOtp(""); }}
+                  onClick={() => { setStep("email"); setOtp(""); }}
                 >
-                  ← Change number
+                  ← Change email
                 </button>
                 <button
                   className="text-primary disabled:text-muted-foreground disabled:cursor-not-allowed transition-colors"
@@ -256,10 +231,6 @@ export default function StaffLoginPage() {
           )}
         </CardContent>
       </Card>
-      <p className="text-center text-xs text-muted-foreground mt-4">
-        New gym?{" "}
-        <a href="/signup" className="text-primary hover:underline font-medium">Start your 14-day free trial →</a>
-      </p>
     </div>
   );
 }
