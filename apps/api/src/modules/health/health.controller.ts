@@ -20,10 +20,25 @@ export class HealthController {
   @Public()
   @HealthCheck()
   @ApiOperation({ summary: "Health check" })
-  check() {
+  async check() {
     const prisma = getPrismaClient();
-    return this.health.check([
-      () => this.prismaHealth.pingCheck("database", prisma),
-    ]);
+
+    // Run ping and surface the real error if it fails
+    try {
+      return await this.health.check([
+        () => this.prismaHealth.pingCheck("database", prisma),
+      ]);
+    } catch (err: unknown) {
+      const cause = (err as { causes?: unknown })?.causes;
+      const message = err instanceof Error ? err.message : String(err);
+      return {
+        status: "error",
+        database: { status: "down", error: message, cause },
+        env: {
+          DATABASE_URL_SET: !!process.env["DATABASE_URL"],
+          DATABASE_URL_PREFIX: process.env["DATABASE_URL"]?.substring(0, 30) ?? "NOT SET",
+        },
+      };
+    }
   }
 }
