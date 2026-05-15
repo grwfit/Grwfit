@@ -68,7 +68,7 @@ export default function PricingPage() {
                   {plan.memberLimit ? `Up to ${plan.memberLimit.toLocaleString()} members` : "Unlimited members"}
                 </p>
                 <Link
-                  href="https://app.grwfit.com/signup"
+                  href="/signup"
                   className={`block w-full text-center py-3 rounded-xl font-bold text-sm transition-colors ${
                     plan.popular ? "bg-white text-indigo-600 hover:bg-indigo-50" : "bg-indigo-600 text-white hover:bg-indigo-700"
                   }`}

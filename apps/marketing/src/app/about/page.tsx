@@ -51,7 +51,7 @@ export default function AboutPage() {
           <div className="mt-12 bg-indigo-50 rounded-2xl p-8 text-center">
             <p className="text-lg font-bold text-gray-900 mb-3">Ready to transform your gym?</p>
             <Link
-              href="https://app.grwfit.com/signup"
+              href="/signup"
               className="inline-block bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-8 py-3 rounded-xl transition-colors"
             >
               Start free 14-day trial →

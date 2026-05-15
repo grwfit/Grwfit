@@ -54,7 +54,7 @@ export default function HomePage() {
           </p>
           <div className="flex flex-col sm:flex-row gap-3 justify-center">
             <Link
-              href="https://app.grwfit.com/signup"
+              href="/signup"
               className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-8 py-4 rounded-xl text-lg transition-colors"
             >
               Start free 14-day trial →
@@ -147,7 +147,7 @@ export default function HomePage() {
                   ))}
                 </ul>
                 <Link
-                  href="https://app.grwfit.com/signup"
+                  href="/signup"
                   className={`block w-full text-center py-2.5 rounded-xl text-sm font-bold transition-colors ${
                     plan.featured ? "bg-white text-indigo-600 hover:bg-indigo-50" : "bg-indigo-600 text-white hover:bg-indigo-700"
                   }`}
@@ -206,7 +206,7 @@ export default function HomePage() {
           <h2 className="text-3xl sm:text-4xl font-bold mb-4">Ready to modernise your gym?</h2>
           <p className="text-indigo-200 mb-8 text-lg">Join 500+ gyms across India. 14-day free trial. No credit card.</p>
           <Link
-            href="https://app.grwfit.com/signup"
+            href="/signup"
             className="inline-block bg-white text-indigo-600 font-bold px-10 py-4 rounded-xl text-lg hover:bg-indigo-50 transition-colors"
           >
             Start your free trial →
