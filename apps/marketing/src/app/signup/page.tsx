@@ -83,13 +83,16 @@ export default function SignupPage() {
                 Your gym account is created!
               </p>
               <p className="text-green-600 text-sm mb-4">
-                We&apos;ll send you a login link on WhatsApp shortly.
+                Log in to your dashboard using your email to get started.
               </p>
-              <p className="text-gray-500 text-xs">
-                Check your WhatsApp on{" "}
-                <span className="font-medium">
-                  +91{form.phone.replace(/^\+91/, "")}
-                </span>
+              <a
+                href="https://crm.grwfit.com/login"
+                className="inline-block bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-8 py-3 rounded-xl transition-colors text-sm"
+              >
+                Go to Dashboard →
+              </a>
+              <p className="text-gray-500 text-xs mt-4">
+                Use <span className="font-medium">{form.email}</span> to sign in
               </p>
             </div>
           ) : (
