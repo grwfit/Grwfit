@@ -5,8 +5,9 @@ import Link from "next/link";
 import { Dumbbell, CheckCircle } from "lucide-react";
 import { Nav, Footer } from "@/components/nav";
 
-const API_URL =
-  process.env["NEXT_PUBLIC_API_URL"] ?? "https://grwfit.onrender.com/api/v1";
+const API_BASE =
+  process.env["NEXT_PUBLIC_API_URL"] ?? "https://grwfit.onrender.com";
+const API_URL = API_BASE.includes("/api/v1") ? API_BASE : `${API_BASE}/api/v1`;
 
 export default function SignupPage() {
   const [form, setForm] = useState({
