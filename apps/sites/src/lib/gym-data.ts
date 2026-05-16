@@ -1,4 +1,5 @@
-const API_URL = process.env["NEXT_PUBLIC_API_URL"] ?? "http://localhost:3000/api/v1";
+const _base = process.env["NEXT_PUBLIC_API_URL"] ?? "https://grwfit.onrender.com";
+const API_URL = _base.endsWith("/api/v1") ? _base : `${_base.replace(/\/$/, "")}/api/v1`;
 
 export interface GymPlan {
   id: string;
