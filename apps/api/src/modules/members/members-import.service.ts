@@ -84,11 +84,17 @@ export class MembersImportService {
     let failed = 0;
     const errors: Array<{ row: number; error: string }> = [];
 
+    const phones = rows.map((r) => r.phone);
+    const existingMembers = await prisma.member.findMany({
+      where: { gymId, phone: { in: phones } },
+      select: { phone: true },
+    });
+    const existingPhones = new Set(existingMembers.map((m) => m.phone));
+
     for (let i = 0; i < rows.length; i++) {
       const row = rows[i]!;
       try {
-        const existing = await prisma.member.findFirst({ where: { gymId, phone: row.phone } });
-        if (existing) {
+        if (existingPhones.has(row.phone)) {
           errors.push({ row: i + 2, error: `Phone ${row.phone} already exists` });
           failed++;
           continue;
@@ -111,6 +117,7 @@ export class MembersImportService {
           },
         });
         succeeded++;
+        existingPhones.add(row.phone);
       } catch (err) {
         errors.push({ row: i + 2, error: err instanceof Error ? err.message : "Unknown error" });
         failed++;

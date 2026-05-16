@@ -166,21 +166,34 @@ export class OnboardingService {
   // ── Step 3: Add Staff ─────────────────────────────────────────────────────
 
   async completeStep3(gymId: string, dto: Step3StaffDto) {
-    for (const trainer of dto.trainers) {
-      const phone = trainer.phone.startsWith("+91") ? trainer.phone : `+91${trainer.phone}`;
-      const exists = await this.prisma.staffUser.findFirst({ where: { gymId, phone } });
-      if (!exists) {
-        await this.prisma.staffUser.create({
-          data: {
-            gymId,
-            phone,
-            name: trainer.name,
-            role: "trainer",
-            commissionPct: trainer.commissionPct ?? null,
-          },
-        });
-      }
+    const phones = dto.trainers.map((t) =>
+      t.phone.startsWith("+91") ? t.phone : `+91${t.phone}`,
+    );
+    const existingStaff = await this.prisma.staffUser.findMany({
+      where: { gymId, phone: { in: phones } },
+      select: { phone: true },
+    });
+    const existingPhones = new Set(existingStaff.map((s) => s.phone));
+
+    const newTrainers = dto.trainers
+      .map((t) => ({
+        ...t,
+        phone: t.phone.startsWith("+91") ? t.phone : `+91${t.phone}`,
+      }))
+      .filter((t) => !existingPhones.has(t.phone));
+
+    if (newTrainers.length > 0) {
+      await this.prisma.staffUser.createMany({
+        data: newTrainers.map((t) => ({
+          gymId,
+          phone: t.phone,
+          name: t.name,
+          role: "trainer" as const,
+          commissionPct: t.commissionPct ?? null,
+        })),
+      });
     }
+
     return this.saveStep(gymId, 3, { trainerCount: dto.trainers.length });
   }
 

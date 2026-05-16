@@ -272,30 +272,35 @@ export class ClassesService {
 
     for (const tpl of templates) {
       if (!tpl.recurrenceRule) continue;
-      // Parse simple RRULE: FREQ=WEEKLY;BYDAY=MO,WE,FR;BYHOUR=7;BYMINUTE=0
       const parsed = this.parseSimpleRRule(tpl.recurrenceRule);
       if (!parsed) continue;
 
-      for (const day of this.getMatchingDays(new Date(), target, parsed.byDay)) {
-        const startsAt = new Date(day);
-        startsAt.setHours(parsed.hour ?? 7, parsed.minute ?? 0, 0, 0);
-        const endsAt = addMinutes(startsAt, tpl.durationMin);
+      const candidateDays = this.getMatchingDays(new Date(), target, parsed.byDay);
+      const candidateStartTimes = candidateDays.map((day) => {
+        const d = new Date(day);
+        d.setHours(parsed.hour ?? 7, parsed.minute ?? 0, 0, 0);
+        return d;
+      });
 
-        const exists = await this.prisma.classInstance.findFirst({
-          where: { templateId: tpl.id, gymId: tpl.gymId, startsAt },
-        });
-        if (!exists) {
-          await this.prisma.classInstance.create({
-            data: {
-              gymId: tpl.gymId,
-              templateId: tpl.id,
-              startsAt,
-              endsAt,
-              capacity: tpl.capacity,
-              trainerId: tpl.trainerId,
-            },
-          }).catch(() => null);
-        }
+      const existingInstances = await this.prisma.classInstance.findMany({
+        where: { templateId: tpl.id, gymId: tpl.gymId, startsAt: { in: candidateStartTimes } },
+        select: { startsAt: true },
+      });
+      const existingTimes = new Set(existingInstances.map((i) => i.startsAt.getTime()));
+
+      const toCreate = candidateStartTimes
+        .filter((st) => !existingTimes.has(st.getTime()))
+        .map((startsAt) => ({
+          gymId: tpl.gymId,
+          templateId: tpl.id,
+          startsAt,
+          endsAt: addMinutes(startsAt, tpl.durationMin),
+          capacity: tpl.capacity,
+          trainerId: tpl.trainerId,
+        }));
+
+      if (toCreate.length > 0) {
+        await this.prisma.classInstance.createMany({ data: toCreate, skipDuplicates: true });
       }
     }
   }
