@@ -7,7 +7,7 @@ import { JwtAuthGuard } from "../../common/guards/jwt-auth.guard";
 import { RequiresPermission } from "../../common/decorators/requires-permission.decorator";
 import { Public } from "../../common/decorators/public.decorator";
 import { WebsiteService } from "./website.service";
-import type {
+import {
   UpdateWebsiteContentDto, ConnectDomainDto, TrialBookingDto,
 } from "./dto/website.dto";
 

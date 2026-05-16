@@ -31,6 +31,7 @@ import { TenantMiddleware } from "./common/middleware/tenant.middleware";
 import { JwtAuthGuard } from "./common/guards/jwt-auth.guard";
 import { PermissionsGuard } from "./common/guards/permissions.guard";
 import { AuditLogInterceptor } from "./common/interceptors/audit-log.interceptor";
+import { TransformResponseInterceptor } from "./common/interceptors/transform-response.interceptor";
 import type { AppConfig } from "./config/configuration";
 
 @Module({
@@ -93,6 +94,7 @@ import type { AppConfig } from "./config/configuration";
     { provide: APP_FILTER, useClass: GlobalExceptionFilter },
     { provide: APP_GUARD, useClass: JwtAuthGuard },
     { provide: APP_GUARD, useClass: PermissionsGuard },
+    { provide: APP_INTERCEPTOR, useClass: TransformResponseInterceptor },
     { provide: APP_INTERCEPTOR, useClass: AuditLogInterceptor },
   ],
 })

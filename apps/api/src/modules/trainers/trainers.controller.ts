@@ -6,7 +6,7 @@ import { JwtAuthGuard } from "../../common/guards/jwt-auth.guard";
 import { RequiresPermission } from "../../common/decorators/requires-permission.decorator";
 import type { AuthenticatedRequest } from "../../common/middleware/tenant.middleware";
 import { TrainersService } from "./trainers.service";
-import type {
+import {
   UpdateTrainerProfileDto, AssignTrainerDto,
   ListCommissionsQueryDto, ApproveCommissionsDto, MarkPaidDto,
 } from "./dto/trainers.dto";

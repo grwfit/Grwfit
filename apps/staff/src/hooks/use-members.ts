@@ -64,11 +64,11 @@ export function useMemberList(params: ListParams = {}) {
   return useQuery({
     queryKey: ["members", gymId, params],
     queryFn: async () => {
-      const res = await apiClient.get<{ items: Member[]; meta: { page: number; limit: number; total: number; totalPages: number } }>(
+      const res = await apiClient.get<{ data: { items: Member[]; meta: { page: number; limit: number; total: number; totalPages: number } } }>(
         `/gyms/${gymId}/members`,
         { params: { page: 1, limit: 25, ...params } },
       );
-      return res.data;
+      return res.data.data;
     },
     enabled: !!gymId,
   });

@@ -82,11 +82,11 @@ export function usePaymentList(params: {
   return useQuery({
     queryKey: ["payments", gymId, params],
     queryFn: async () => {
-      const res = await apiClient.get<{ items: Payment[]; meta: { page: number; total: number; totalPages: number; limit: number } }>(
+      const res = await apiClient.get<{ data: { items: Payment[]; meta: { page: number; total: number; totalPages: number; limit: number } } }>(
         `/gyms/${gymId}/payments`,
         { params: { page: 1, limit: 25, ...params } },
       );
-      return res.data;
+      return res.data.data;
     },
     enabled: !!gymId,
   });

@@ -105,8 +105,8 @@ export function useMarkContacted() {
       notes?: string;
       followUpAt?: string;
     }) => {
-      const res = await apiClient.post(`/gyms/${gymId}/renewals/follow-up`, dto);
-      return res.data;
+      const res = await apiClient.post<{ data: unknown }>(`/gyms/${gymId}/renewals/follow-up`, dto);
+      return res.data.data;
     },
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ["renewals", gymId] });

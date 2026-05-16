@@ -7,7 +7,7 @@ import { JwtAuthGuard } from "../../common/guards/jwt-auth.guard";
 import { RequiresPermission } from "../../common/decorators/requires-permission.decorator";
 import type { AuthenticatedRequest } from "../../common/middleware/tenant.middleware";
 import { ClassesService } from "./classes.service";
-import type {
+import {
   CreateClassTemplateDto, UpdateClassTemplateDto, CreateClassInstanceDto,
   UpdateClassInstanceDto, BookClassDto, ListInstancesQueryDto, UpdateClassSettingsDto,
 } from "./dto/classes.dto";

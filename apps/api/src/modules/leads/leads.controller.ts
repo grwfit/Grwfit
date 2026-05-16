@@ -7,7 +7,7 @@ import { JwtAuthGuard } from "../../common/guards/jwt-auth.guard";
 import { RequiresPermission } from "../../common/decorators/requires-permission.decorator";
 import type { AuthenticatedRequest } from "../../common/middleware/tenant.middleware";
 import { LeadsService } from "./leads.service";
-import type {
+import {
   CreateLeadDto, UpdateLeadDto, MoveLeadDto, LostLeadDto,
   ConvertLeadDto, AddLeadActivityDto, ListLeadsQueryDto,
   CreateLeadStageDto, UpdateLeadStageDto, ReorderStagesDto,

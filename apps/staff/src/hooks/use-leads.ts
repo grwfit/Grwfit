@@ -96,10 +96,10 @@ export function useLeads(params: Record<string, unknown> = {}) {
   return useQuery({
     queryKey: ["leads", "list", gymId, params],
     queryFn: async () => {
-      const res = await apiClient.get<{ data: Lead[]; meta: { page: number; total: number } }>(
+      const res = await apiClient.get<{ data: { data: Lead[]; meta: { page: number; total: number } } }>(
         `/gyms/${gymId}/leads`, { params },
       );
-      return res.data;
+      return res.data.data;
     },
     enabled: !!gymId,
     staleTime: 30 * 1000,

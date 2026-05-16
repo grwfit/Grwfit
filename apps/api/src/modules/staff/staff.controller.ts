@@ -56,8 +56,7 @@ export class StaffController {
     @Req() req: AuthenticatedRequest,
   ) {
     this.assertGymAccess(gymId, req);
-    const result = await this.staffService.list(gymId, query, req);
-    return { success: true, ...result };
+    return this.staffService.list(gymId, query, req);
   }
 
   @Get("trainers")

@@ -54,8 +54,7 @@ export class MembersController {
     @Req() req: AuthenticatedRequest,
   ) {
     this.assertGym(gymId, req);
-    const result = await this.membersService.list(gymId, query, req);
-    return { success: true, ...result };
+    return this.membersService.list(gymId, query, req);
   }
 
   @Get("export")

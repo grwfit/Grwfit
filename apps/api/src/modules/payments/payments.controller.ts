@@ -94,8 +94,7 @@ export class PaymentsController {
     @Req() req: AuthenticatedRequest,
   ) {
     this.assertGym(gymId, req);
-    const result = await this.paymentsService.list(gymId, query, req);
-    return { success: true, ...result };
+    return this.paymentsService.list(gymId, query, req);
   }
 
   @Get("gyms/:gymId/payments/gst-report")

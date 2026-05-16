@@ -128,10 +128,10 @@ export function useCommissions(params: { trainerId?: string; status?: string; mo
   return useQuery({
     queryKey: ["commissions", gymId, params],
     queryFn: async () => {
-      const res = await apiClient.get<{ data: Commission[]; meta: { total: number } }>(
+      const res = await apiClient.get<{ data: { data: Commission[]; meta: { total: number } } }>(
         `/gyms/${gymId}/trainers/commissions/list`, { params },
       );
-      return res.data;
+      return res.data.data;
     },
     enabled: !!gymId,
     staleTime: 60 * 1000,

@@ -9,7 +9,7 @@ import { RequiresPermission } from "../../common/decorators/requires-permission.
 import type { AuthenticatedRequest } from "../../common/middleware/tenant.middleware";
 import { WhatsAppModuleService } from "./whatsapp.service";
 import { BroadcastService } from "./services/broadcast.service";
-import type {
+import {
   CreateTemplateDto, UpdateTemplateDto, TestTemplateSendDto,
   CreateBroadcastDto, UpsertTriggerRuleDto, ListMessagesQueryDto,
   BroadcastAudienceQueryDto,

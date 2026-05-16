@@ -7,7 +7,7 @@ import { JwtAuthGuard } from "../../common/guards/jwt-auth.guard";
 import { RequiresPermission } from "../../common/decorators/requires-permission.decorator";
 import type { AuthenticatedRequest } from "../../common/middleware/tenant.middleware";
 import { PlansService } from "./plans.service";
-import type {
+import {
   CreateWorkoutTemplateDto, CreateWorkoutPlanDto, UpdateWorkoutPlanDto,
   CreateDietPlanDto, UpdateDietPlanDto, LogProgressDto,
 } from "./dto/plans.dto";
