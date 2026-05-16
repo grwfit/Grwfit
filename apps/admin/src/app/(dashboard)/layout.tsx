@@ -9,6 +9,7 @@ import {
   Shield, BarChart3, Flag, Activity, Settings, Ticket,
 } from "lucide-react";
 import { cn } from "@grwfit/ui";
+import { apiClient } from "@/lib/api-client";
 
 const navItems = [
   { href: "/overview", label: "Overview", icon: LayoutDashboard },
@@ -28,7 +29,7 @@ export default function AdminDashboardLayout({ children }: { children: React.Rea
   const pathname = usePathname();
 
   useEffect(() => {
-    if (typeof window !== "undefined" && !sessionStorage.getItem("platform_token")) {
+    if (typeof window !== "undefined" && !sessionStorage.getItem("platform_user_email")) {
       router.replace("/login");
     }
   }, [router]);
@@ -70,8 +71,9 @@ export default function AdminDashboardLayout({ children }: { children: React.Rea
         <header className="flex h-16 items-center border-b bg-card px-6 justify-between">
           <h1 className="font-semibold">GrwFit Platform Dashboard</h1>
           <button
-            onClick={() => {
-              sessionStorage.clear();
+            onClick={async () => {
+              try { await apiClient.post("/admin/auth/logout"); } catch { /* ignore */ }
+              sessionStorage.removeItem("platform_user_email");
               router.replace("/login");
             }}
             className="text-sm text-muted-foreground hover:text-foreground"

@@ -10,6 +10,7 @@ import {
   HttpCode,
   HttpStatus,
   Req,
+  ForbiddenException,
 } from "@nestjs/common";
 import { ApiTags, ApiOperation, ApiBearerAuth } from "@nestjs/swagger";
 import { BranchesService } from "./branches.service";
@@ -74,6 +75,6 @@ export class BranchesController {
   }
 
   private assertGymAccess(gymId: string, req: AuthenticatedRequest): void {
-    if (req.gymId && req.gymId !== gymId) throw new Error("Forbidden: gym mismatch");
+    if (req.gymId && req.gymId !== gymId) throw new ForbiddenException("Gym mismatch");
   }
 }

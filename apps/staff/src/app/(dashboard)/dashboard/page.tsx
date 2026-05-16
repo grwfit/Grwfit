@@ -1,9 +1,12 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { Users, LogIn, CreditCard, TrendingUp, CheckCircle, Circle, AlertCircle } from "lucide-react";
+import { Users, LogIn, CreditCard, TrendingUp, CheckCircle, Circle, AlertCircle, Loader2 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@grwfit/ui";
 import { useOnboardingProgress } from "@/hooks/use-onboarding";
+import { useTodayCheckins } from "@/hooks/use-checkins";
+import { useMemberReport, useRevenueReport } from "@/hooks/use-reports";
+import { useRenewalsDashboard } from "@/hooks/use-renewals";
 
 const STEP_LABELS = [
   "Set up gym profile",
@@ -11,13 +14,6 @@ const STEP_LABELS = [
   "Add your trainers",
   "Import members",
   "Complete first check-in",
-];
-
-const STATS = [
-  { label: "Active Members", icon: Users, color: "text-blue-600" },
-  { label: "Check-ins Today", icon: LogIn, color: "text-green-600" },
-  { label: "Revenue This Month", icon: CreditCard, color: "text-purple-600" },
-  { label: "Renewals Due (7d)", icon: TrendingUp, color: "text-orange-600" },
 ];
 
 function SetupChecklist({ onDismiss }: { onDismiss: () => void }) {
@@ -88,28 +84,74 @@ function SetupChecklist({ onDismiss }: { onDismiss: () => void }) {
   );
 }
 
+function formatPaise(paise: number): string {
+  return `₹${(paise / 100).toLocaleString("en-IN")}`;
+}
+
+function StatCard({ label, icon: Icon, color, value, isLoading }: {
+  label: string; icon: React.ElementType; color: string; value: string; isLoading: boolean;
+}) {
+  return (
+    <Card>
+      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+        <CardTitle className="text-sm font-medium text-muted-foreground">{label}</CardTitle>
+        <Icon className={`h-4 w-4 ${color}`} />
+      </CardHeader>
+      <CardContent>
+        {isLoading ? (
+          <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+        ) : (
+          <div className="text-2xl font-bold">{value}</div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
 export default function DashboardPage() {
+  const { data: memberReport, isLoading: membersLoading } = useMemberReport("mtd");
+  const { data: checkins, isLoading: checkinsLoading } = useTodayCheckins();
+  const { data: revenue, isLoading: revenueLoading } = useRevenueReport("mtd");
+  const { data: renewals, isLoading: renewalsLoading } = useRenewalsDashboard({ bucket: "week" });
+
+  const activeMembers = memberReport?.statusBreakdown?.find((s) => s.status === "active")?.count ?? 0;
+  const totalMembers = memberReport?.total ?? 0;
 
   return (
     <div className="space-y-6">
       <h1 className="text-2xl font-bold">Dashboard</h1>
 
-      {/* Setup checklist for new gyms */}
       <SetupChecklist onDismiss={() => {}} />
 
-      {/* Placeholder stats */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {STATS.map(({ label, icon: Icon, color }) => (
-          <Card key={label}>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">{label}</CardTitle>
-              <Icon className={`h-4 w-4 ${color}`} />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">—</div>
-            </CardContent>
-          </Card>
-        ))}
+        <StatCard
+          label="Active Members"
+          icon={Users}
+          color="text-blue-600"
+          value={`${activeMembers.toLocaleString("en-IN")}${totalMembers > 0 ? ` / ${totalMembers.toLocaleString("en-IN")}` : ""}`}
+          isLoading={membersLoading}
+        />
+        <StatCard
+          label="Check-ins Today"
+          icon={LogIn}
+          color="text-green-600"
+          value={String(checkins?.total ?? 0)}
+          isLoading={checkinsLoading}
+        />
+        <StatCard
+          label="Revenue This Month"
+          icon={CreditCard}
+          color="text-purple-600"
+          value={formatPaise(revenue?.totalPaise ?? 0)}
+          isLoading={revenueLoading}
+        />
+        <StatCard
+          label="Renewals Due (7d)"
+          icon={TrendingUp}
+          color="text-orange-600"
+          value={String(renewals?.summary?.week?.count ?? 0)}
+          isLoading={renewalsLoading}
+        />
       </div>
     </div>
   );

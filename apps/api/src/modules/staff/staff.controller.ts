@@ -12,6 +12,7 @@ import {
   HttpCode,
   HttpStatus,
   Req,
+  ForbiddenException,
 } from "@nestjs/common";
 import {
   ApiTags,
@@ -126,7 +127,7 @@ export class StaffController {
   /** Prevent access to another gym's staff via URL manipulation */
   private assertGymAccess(gymId: string, req: AuthenticatedRequest): void {
     if (req.gymId && req.gymId !== gymId) {
-      throw new Error("Forbidden: gym mismatch");
+      throw new ForbiddenException("Gym mismatch");
     }
   }
 }

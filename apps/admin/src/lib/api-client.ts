@@ -9,14 +9,8 @@ export const apiClient = axios.create({
   headers: { "Content-Type": "application/json" },
 });
 
-// Attach platform token from sessionStorage on every request
-apiClient.interceptors.request.use((config) => {
-  if (typeof window !== "undefined") {
-    const token = sessionStorage.getItem("platform_token");
-    if (token) config.headers["Authorization"] = `Bearer ${token}`;
-  }
-  return config;
-});
+// Auth relies on httpOnly platform_token cookie (set by backend on login).
+// withCredentials: true ensures the cookie is sent with every request.
 
 apiClient.interceptors.response.use(
   (res) => res,
@@ -24,7 +18,6 @@ apiClient.interceptors.response.use(
     const axiosError = error as { response?: { status: number }; config?: { url?: string } };
     if (axiosError.response?.status === 401 && !axiosError.config?.url?.includes("/auth/")) {
       if (typeof window !== "undefined") {
-        sessionStorage.removeItem("platform_token");
         sessionStorage.removeItem("platform_user_email");
         window.location.href = "/login";
       }

@@ -2,7 +2,7 @@ import {
   Controller, Get, Post, Put, Delete, Patch,
   Body, Param, Query, Req, Res,
   ParseUUIDPipe, HttpCode, HttpStatus,
-  UploadedFile, UseInterceptors,
+  UploadedFile, UseInterceptors, ForbiddenException,
 } from "@nestjs/common";
 import { FileInterceptor } from "@nestjs/platform-express";
 import {
@@ -225,6 +225,6 @@ export class MembersController {
   }
 
   private assertGym(gymId: string, req: AuthenticatedRequest) {
-    if (req.gymId && req.gymId !== gymId) throw new Error("Forbidden: gym mismatch");
+    if (req.gymId && req.gymId !== gymId) throw new ForbiddenException("Gym mismatch");
   }
 }

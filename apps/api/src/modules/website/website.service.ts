@@ -122,7 +122,7 @@ export class WebsiteService {
   // ── Custom domain ─────────────────────────────────────────────────────────
 
   async connectDomain(gymId: string, dto: ConnectDomainDto) {
-    const cloudflareToken = this.config.get("storage.awsAccessKeyId", { infer: true }); // placeholder — real impl uses CLOUDFLARE_API_TOKEN
+    const cloudflareToken = process.env["CLOUDFLARE_API_TOKEN"];
     const cfZoneId = process.env["CLOUDFLARE_ZONE_ID"];
 
     let cloudflareSiteId: string | null = null;

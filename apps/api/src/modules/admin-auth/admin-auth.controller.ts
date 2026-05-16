@@ -42,7 +42,7 @@ export class AdminAuthController {
 
     return {
       success: true,
-      data: { user: result.user, accessToken: result.accessToken },
+      data: { user: result.user },
     };
   }
 

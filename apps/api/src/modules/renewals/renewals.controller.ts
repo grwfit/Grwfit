@@ -1,6 +1,7 @@
 import {
   Controller, Get, Post, Put, Body, Param,
   Query, Req, Res, HttpCode, HttpStatus, ParseUUIDPipe,
+  ForbiddenException,
 } from "@nestjs/common";
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiParam } from "@nestjs/swagger";
 import type { Response } from "express";
@@ -171,6 +172,6 @@ export class RenewalsController {
   }
 
   private assertGym(gymId: string, req: AuthenticatedRequest) {
-    if (req.gymId && req.gymId !== gymId) throw new Error("Forbidden: gym mismatch");
+    if (req.gymId && req.gymId !== gymId) throw new ForbiddenException("Gym mismatch");
   }
 }

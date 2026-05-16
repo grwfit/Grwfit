@@ -19,9 +19,8 @@ export default function AdminLoginPage() {
     setIsLoading(true);
     try {
       const res = await apiClient.post<{
-        data: { user: { name: string; email: string; role: string }; accessToken: string };
+        data: { user: { name: string; email: string; role: string } };
       }>("/admin/auth/login", { email, password, totpCode });
-      sessionStorage.setItem("platform_token", res.data.data.accessToken);
       sessionStorage.setItem("platform_user_email", res.data.data.user.email);
       router.replace("/overview");
     } catch (err: unknown) {
