@@ -29,8 +29,7 @@ interface ListStaffParams {
   isActive?: string;
 }
 
-interface ApiListResponse {
-  data: StaffUser[];
+interface StaffListResponse {
   items: StaffUser[];
   meta: { page: number; limit: number; total: number; totalPages: number };
 }
@@ -40,11 +39,10 @@ export function useStaffList(params: ListStaffParams = {}) {
   return useQuery({
     queryKey: ["staff", gymId, params],
     queryFn: async () => {
-      const res = await apiClient.get<ApiListResponse>(`/gyms/${gymId}/staff`, {
+      const res = await apiClient.get<{ data: StaffListResponse }>(`/gyms/${gymId}/staff`, {
         params: { page: 1, limit: 25, isActive: "true", ...params },
       });
-      // API returns items at root level
-      return { items: res.data.items ?? [], meta: res.data.meta };
+      return res.data.data;
     },
     enabled: !!gymId,
   });
