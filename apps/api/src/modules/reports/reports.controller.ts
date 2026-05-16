@@ -3,7 +3,7 @@ import { ApiTags, ApiOperation, ApiBearerAuth } from "@nestjs/swagger";
 import { JwtAuthGuard } from "../../common/guards/jwt-auth.guard";
 import { RequiresPermission } from "../../common/decorators/requires-permission.decorator";
 import { ReportsService } from "./reports.service";
-import type { ReportsFilterDto, AttendanceReportDto } from "./dto/reports.dto";
+import { ReportsFilterDto, AttendanceReportDto } from "./dto/reports.dto";
 
 @ApiTags("Reports")
 @ApiBearerAuth()

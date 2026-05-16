@@ -7,7 +7,7 @@ import { JwtAuthGuard } from "../../common/guards/jwt-auth.guard";
 import { Public } from "../../common/decorators/public.decorator";
 import type { AuthenticatedRequest } from "../../common/middleware/tenant.middleware";
 import { OnboardingService } from "./onboarding.service";
-import type {
+import {
   GymSignupDto, Step1GymProfileDto, Step2PlansDto,
   Step3StaffDto, ConvertTrialDto,
 } from "./dto/onboarding.dto";

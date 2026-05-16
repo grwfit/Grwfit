@@ -6,7 +6,7 @@ import { ApiTags, ApiOperation, ApiBearerAuth } from "@nestjs/swagger";
 import { JwtAuthGuard } from "../../common/guards/jwt-auth.guard";
 import type { AuthenticatedRequest } from "../../common/middleware/tenant.middleware";
 import { PlatformService } from "./platform.service";
-import type { ListGymsQueryDto, ImpersonateDto, AuditLogQueryDto } from "./dto/platform.dto";
+import { ListGymsQueryDto, ImpersonateDto, AuditLogQueryDto } from "./dto/platform.dto";
 
 // All routes require a platform JWT (type === "platform")
 function assertPlatform(req: AuthenticatedRequest) {

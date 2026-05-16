@@ -7,7 +7,7 @@ import type { AuthenticatedRequest } from "../../common/middleware/tenant.middle
 import { getPrismaClient } from "@grwfit/db";
 import { PlansService } from "../plans/plans.service";
 import { ClassesService } from "../classes/classes.service";
-import type { LogProgressDto } from "../plans/dto/plans.dto";
+import { LogProgressDto } from "../plans/dto/plans.dto";
 
 @ApiTags("Member Portal")
 @ApiBearerAuth()
